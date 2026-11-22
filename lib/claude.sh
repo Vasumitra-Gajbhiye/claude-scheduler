@@ -158,3 +158,29 @@ claude_result_fields() {
 looks_like_usage_limit() {
   grep -qiE "usage limit|limit reached|rate.?limit|hit your limit|out of (extra )?usage|5-hour limit|weekly limit|quota|too many requests|\b429\b" "$@" 2>/dev/null
 }
+
+# ./brief chrome-check: one tiny live claude turn that calls tabs_context_mcp.
+# The only reliable way to know the extension is paired with this Claude Code login.
+cmd_chrome_check() {
+  local d out res den
+  [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ] || die "claude not found"
+  d="$RUNS_DIR/chrome-check-$(TZ=$BRIEF_TZ date '+%Y%m%d-%H%M%S')"; mkdir -p "$d"
+  say "Asking claude to call the Claude in Chrome extension (one short turn on your plan)…"
+  out="$(cd "$d" && printf '%s\n' 'Call mcp__claude-in-chrome__tabs_context_mcp exactly once with createIfEmpty false. Do nothing else. If it returned tab information, reply with exactly: CONNECTED. Otherwise reply with: ERROR: followed by the exact error text.' |
+    "$CLAUDE_BIN" -p --model "$MODEL" --chrome --output-format json --permission-mode dontAsk --permission-prompts none \
+      --strict-mcp-config --no-session-persistence --allowedTools "mcp__claude-in-chrome__tabs_context_mcp" 2>"$d/stderr")"
+  printf '%s' "$out" >"$d/result.json"
+  res="$(claude_result_fields "$d/result.json" | sed -n 's/^result=//p')"
+  den="$(claude_result_fields "$d/result.json" | sed -n 's/^permission_denials=//p')"
+  case "$res" in
+    *CONNECTED*) say "${C_GRN}✅ Claude in Chrome is connected and usable from claude -p.${C_OFF}" ;;
+    *"not connected"*)
+      say "${C_RED}❌ Browser extension is not connected.${C_OFF}"
+      say "   → In Chrome: open the Claude extension and sign in with the SAME claude.ai account/org as Claude Code"
+      say "     (claude auth status shows which). Then restart Chrome, run: claude --chrome  →  /chrome"
+      return 1 ;;
+    *)
+      say "${C_RED}❌ Chrome check failed${C_OFF} (denials: ${den:-?}): ${res:-no result; see $d}"
+      return 1 ;;
+  esac
+}

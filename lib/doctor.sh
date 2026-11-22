@@ -86,9 +86,10 @@ EOF
     d_bad "Claude in Chrome native host missing" "Install the Claude extension (≥1.0.36), then run claude --chrome once and /chrome"
   fi
   if chrome_connected; then
-    d_ok "Claude in Chrome extension connected (native host running)"
+    d_ok "Claude in Chrome native host is running"
+    d_info "That doesn't prove the extension is signed in to this account. Verify with: ./brief chrome-check"
   else
-    d_warn "Claude in Chrome extension not connected right now" "Open Chrome, check the Claude extension is signed in (same account/org as Claude Code), run /chrome in claude"
+    d_warn "Claude in Chrome native host not running (extension not active)" "Open Chrome, check the Claude extension is signed in (same account/org as Claude Code), run /chrome in claude"
   fi
 
   # 5-6. config + telegram
