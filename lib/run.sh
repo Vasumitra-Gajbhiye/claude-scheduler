@@ -190,6 +190,13 @@ build_messages() {
 "
       continue
     fi
+    if [ "$s" = day ]; then
+      # "Today" entries may have no link; count numbered entries instead. Not counted as items.
+      c="$(grep -cE '^[0-9]+\. ' "$f" 2>/dev/null || true)"; c="${c:-0}"
+      [ "$c" -gt 0 ] || { log_only "Section day has nothing notable; skipping."; continue; }
+      sanitize_section "$f" >"$send/$(section_file "$s")"
+      continue
+    fi
     c="$(section_item_count "$f")"; c="${c:-0}"
     [ "$c" -gt 0 ] || { log_only "Section $s has no items; skipping."; continue; }
     sanitize_section "$f" >"$send/$(section_file "$s")"
@@ -211,7 +218,7 @@ build_messages() {
     header="$header
 
 $counts"
-  else
+  elif [ ! -s "$send/$(section_file day)" ]; then
     header="$header
 
 Nothing new worth sending today."
@@ -230,7 +237,7 @@ Nothing new worth sending today."
 }
 
 section_emoji() {
-  case "$1" in india) echo "🇮🇳" ;; tech) echo "💻" ;; events) echo "📅" ;; competitions) echo "🏆" ;; internships) echo "💼" ;; esac
+  case "$1" in day) echo "📆" ;; world) echo "🌍" ;; india) echo "🇮🇳" ;; tech) echo "💻" ;; events) echo "📅" ;; competitions) echo "🏆" ;; internships) echo "💼" ;; esac
 }
 
 # Send every message in a dir in order. Header (00-*) with sound, the rest silent.

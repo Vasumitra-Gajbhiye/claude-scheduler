@@ -2,12 +2,16 @@
 
 A daily Telegram digest written by Claude Code running headless (`claude -p`) on a **Claude Pro subscription**. It runs every morning at 06:00 IST on an always-on Mac Mini.
 
-It researches five sections:
-- 🇮🇳 India: The Hindu, read in your logged-in Chrome
-- 💻 Tech & AI
+It researches seven sections:
+- 📆 Today: what today is known for (national/international days, anniversaries, festivals)
+- 🇮🇳 India: the top 5 stories, from The Hindu read in your logged-in Chrome
+- 🌍 World: the top 3 global stories
+- 💻 Tech & AI: the top 3 stories
 - 📅 Bangalore events (Luma, in Chrome)
 - 🏆 Competitions
-- 💼 Internships
+- 💼 Internships: only ones paying ₹50,000/month or more (or well-known big-firm programmes that pay above that)
+
+The counts, sources and rules per section live in `prompts/sources.md`; edit them freely.
 
 Then it sends them as plain-text Telegram messages, one per section, with a deterministic ⏰ Closing-soon reminder list. Only the first message buzzes your phone. It's one-way: the bot never reads your replies.
 
@@ -16,7 +20,7 @@ launchd 06:00, at login, on wake, every 30 min ─▶ brief run --scheduled
                    ├─ due? (past 06:00, not delivered today, < 3 attempts today), else exit silently
                    ├─ lock, wait for network, prune memory, make sure Chrome + extension are up
                    ├─ claude -p --model sonnet --chrome  (sandboxed, read-only, no shell)
-                   │    writes 10-india.txt … 50-internships.txt, items.tsv, notes.txt
+                   │    writes 05-day.txt … 50-internships.txt, items.tsv, notes.txt
                    ├─ bash builds header, ⏰ Closing soon, "couldn't check" footer
                    ├─ Telegram sendMessage (split, retried)
                    └─ only if everything sent: remember items, archive, mark success
@@ -62,7 +66,7 @@ Paths are resolved from the script's own location, so the repo can live anywhere
 |---|---|
 | `./brief run` | Full run now: research, send to Telegram, update memory, archive. Ignores the "already sent today" guard. |
 | `./brief run --dry-run` | Full research, printed to the terminal. Sends nothing. Doesn't touch `seen.tsv` or `archive/`. |
-| `./brief run --only <section>` | One section only: `india`, `tech`, `events`, `competitions`, `internships`. Combine with `--dry-run`. |
+| `./brief run --only <section>` | One section only: `day`, `india`, `world`, `tech`, `events`, `competitions`, `internships`. Combine with `--dry-run`. |
 | `./brief run --scheduled` | What launchd runs. Only runs if a brief is due: past `RUN_HOUR:RUN_MINUTE`, not yet delivered today, and fewer than `MAX_DAILY_ATTEMPTS` attempts today. Otherwise it exits silently. Waits for the network, starts Chrome and waits up to 60s for the extension. |
 | `./brief resend [YYYY-MM-DD]` | Re-send an archived brief (default: the latest). |
 | `./brief chat-id` | Lists the chat IDs that have messaged your bot (Telegram `getUpdates`). |

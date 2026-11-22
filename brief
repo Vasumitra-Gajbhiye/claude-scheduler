@@ -36,7 +36,7 @@ ${C_BOLD}Running${C_OFF}
   run                      Full run now: research, send to Telegram, update state, archive.
                            Ignores the "already sent today" guard.
   run --dry-run            Research and print every section here; send nothing, save nothing.
-  run --only <section>     Just one section: india | tech | events | competitions | internships
+  run --only <section>     Just one section: day | india | world | tech | events | competitions | internships
                            (combine with --dry-run for a cheap test)
   run --scheduled          What launchd runs at the scheduled time: skips if today's brief was
                            already delivered, and waits for Chrome first.

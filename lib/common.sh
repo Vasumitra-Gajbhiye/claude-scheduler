@@ -127,23 +127,26 @@ is_mac_mini() {
 }
 
 # Section ids in output order, plus file names and headings (bash 3.2: no assoc arrays).
-ALL_SECTIONS="india tech events competitions internships"
+ALL_SECTIONS="day india world tech events competitions internships"
 section_file() {
   case "$1" in
-    india) echo "10-india.txt" ;; tech) echo "20-tech.txt" ;; events) echo "30-events.txt" ;;
+    day) echo "05-day.txt" ;; india) echo "10-india.txt" ;; world) echo "15-world.txt" ;;
+    tech) echo "20-tech.txt" ;; events) echo "30-events.txt" ;;
     competitions) echo "40-competitions.txt" ;; internships) echo "50-internships.txt" ;;
     *) return 1 ;;
   esac
 }
 section_label() {
   case "$1" in
-    india) echo "India" ;; tech) echo "Tech & AI" ;; events) echo "Bangalore events" ;;
+    day) echo "Today" ;; india) echo "India" ;; world) echo "World" ;;
+    tech) echo "Tech & AI" ;; events) echo "Bangalore events" ;;
     competitions) echo "Competitions" ;; internships) echo "Internships" ;;
   esac
 }
 section_type() {
   case "$1" in
-    india) echo "news" ;; tech) echo "tech" ;; events) echo "event" ;;
+    day) echo "day" ;; india) echo "news" ;; world) echo "world" ;;
+    tech) echo "tech" ;; events) echo "event" ;;
     competitions) echo "competition" ;; internships) echo "internship" ;;
   esac
 }

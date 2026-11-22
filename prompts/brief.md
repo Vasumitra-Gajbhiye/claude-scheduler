@@ -78,7 +78,9 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
 
 ## Section files
 - File names:
+  - 05-day.txt
   - 10-india.txt
+  - 15-world.txt
   - 20-tech.txt
   - 30-events.txt
   - 40-competitions.txt
@@ -90,13 +92,25 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
 - Put each URL on its own line, by itself.
 
 Section headings, in order:
+- 📆 TODAY
 - 🇮🇳 INDIA
+- 🌍 WORLD
 - 💻 TECH & AI
 - 📅 BANGALORE EVENTS
 - 🏆 COMPETITIONS
 - 💼 INTERNSHIPS
 
-Format for india and tech:
+Item counts: follow sources.md exactly. India is exactly 5, World exactly 3, Tech & AI exactly 3 (fewer only if there genuinely aren't enough).
+
+Format for day (📆 TODAY), with no tracking row in items.tsv:
+```
+📆 TODAY
+
+1. Gandhi Jayanti
+Birth anniversary of Mahatma Gandhi; national holiday and International Day of Non-Violence.
+```
+
+Format for india, world and tech:
 ```
 🇮🇳 INDIA
 
@@ -125,7 +139,7 @@ Deadline: Fri 5 Dec · Prize: ₹2L pool · Eligibility: all UG students, online
 One line on why it's a fit.
 https://link
 ```
-- For internships, the details line is: Deadline · Stipend (if known) · Location/Remote · eligibility note.
+- For internships, the details line is: Deadline · Stipend (₹/month; must be ₹50,000+ or a big-firm programme known to pay more) · Location/Remote · eligibility note.
 - The eligibility note is exactly one of:
   - "✅ open to 1st years"
   - "🕓 2nd/3rd-year only: note for the cycle"
@@ -134,11 +148,11 @@ https://link
 
 ## items.tsv
 - One row per item you included in any section file, tab-separated, with exactly 4 fields:
-  1. type: one of news, tech, event, competition, internship (india → news, tech → tech, events → event)
+  1. type: one of news, world, tech, event, competition, internship (india → news, world → world, tech → tech, events → event). No rows for the day section.
   2. deadline: YYYY-MM-DD, or empty
      - For events, use the event date.
      - For competitions and internships, use the application deadline.
-     - For news and tech, leave it empty.
+     - For news, world and tech, leave it empty.
   3. title: short title
   4. url: the same URL as in the section file
 - No header row. No tabs or newlines inside fields.
