@@ -236,6 +236,12 @@ Start with `./brief doctor`, then `./brief logs`. Every failure also arrives on 
 - Fix: open Chrome, check the extension's login, restart Chrome, then `claude --chrome` → `/chrome`.
 - Make sure Chrome is in Login Items on the Mac Mini.
 
+**Chrome opened on a different computer (e.g. the MacBook) during a Mac Mini run**
+- Every Chrome signed in to your claude.ai account is reachable from Claude Code, wherever it is.
+- Each run therefore lists the connected browsers and pins itself to the one on *this* machine (`isLocal`).
+- If this machine's Chrome isn't connected, the run doesn't use Chrome at all. The Chrome sections fall back, and the footer says "Chrome: no local browser connected".
+- Fix that on the Mac in question: Chrome running, Claude extension signed in to the same account, quit and reopen Chrome. Then `./brief chrome-check` must say "✅ This Mac's Chrome is connected".
+
 **Chrome asks for permission / sites blocked**
 - Unattended runs deny anything that would prompt.
 - Allow the sites in the Claude extension's settings (see the Mac Mini setup).

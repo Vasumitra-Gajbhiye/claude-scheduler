@@ -54,7 +54,12 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
    - Use WebSearch and WebFetch for everything, EXCEPT where sources.md says Chrome.
    - Browsing in Chrome is slow and expensive, so use it only where marked.
 5. Chrome (only when enabled for this run).
-   - Call tabs_context_mcp first with createIfEmpty: true (this creates your own tab group), then open NEW tabs with tabs_create_mcp and navigate.
+   - FIRST, before any other Chrome tool, call list_connected_browsers. Several computers' browsers may be connected to this account.
+     - Use ONLY the browser on THIS machine: the entry with "isLocal": true. Call select_browser with its deviceId.
+     - If no entry has "isLocal": true, do NOT use Chrome at all, not even a browser marked inUse.
+       Use the WebFetch fallbacks, and write "Chrome: no local browser connected" in notes.txt.
+     - Never call switch_browser.
+   - Then call tabs_context_mcp with createIfEmpty: true (this creates your own tab group), open NEW tabs with tabs_create_mcp, and navigate.
    - Read with get_page_text (or read_page/find), not screenshots.
    - Close every tab you opened, with tabs_close_mcp, before you finish.
    - If a Chrome tool is blocked, denied, errors, or asks for permission, do not retry it more than once.
