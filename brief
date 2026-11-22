@@ -56,6 +56,7 @@ ${C_BOLD}Inspecting${C_OFF}
   status                   Last run, result, duration, items, schedule state, next run.
   logs [-f]                Show (or follow) the latest run log.
   doctor                   Health check with a fix for every problem.
+  chrome-check             Live test that claude -p can use the Claude in Chrome extension.
   help                     This help.
 
 ${C_BOLD}Examples${C_OFF}
@@ -83,6 +84,7 @@ main() {
     status)         cmd_status "$@" ;;
     logs)           cmd_logs "$@" ;;
     doctor)         cmd_doctor "$@" ;;
+    chrome-check)   cmd_chrome_check "$@" ;;
     help|-h|--help) usage ;;
     *) err "Unknown command: $cmd"; echo; usage; exit 2 ;;
   esac
