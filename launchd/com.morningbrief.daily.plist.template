@@ -18,14 +18,23 @@
   <string>__REPO__</string>
 
   <!-- Local time. launchd runs a missed job when the Mac wakes. `run --scheduled` decides whether a
-       brief is actually due (past the run time, not yet delivered today, attempts left). -->
+       brief is actually due (past the run time, not yet delivered today, attempts left), or, at the
+       evening time, whether the to-do check is due (TASKS_EVENING_HOUR; silent if to-dos are off). -->
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key>
-    <integer>__HOUR__</integer>
-    <key>Minute</key>
-    <integer>__MINUTE__</integer>
-  </dict>
+  <array>
+    <dict>
+      <key>Hour</key>
+      <integer>__HOUR__</integer>
+      <key>Minute</key>
+      <integer>__MINUTE__</integer>
+    </dict>
+    <dict>
+      <key>Hour</key>
+      <integer>__EVHOUR__</integer>
+      <key>Minute</key>
+      <integer>0</integer>
+    </dict>
+  </array>
 
   <!-- Catch-up: also check at login (agent load) and every RETRY_MINUTES. Cheap and silent when nothing is due. -->
   <key>RunAtLoad</key>

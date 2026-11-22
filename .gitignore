@@ -10,3 +10,6 @@ runs/
 
 # macOS
 .DS_Store
+
+# Per-machine assistant settings
+.claude/settings.local.json

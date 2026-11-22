@@ -68,7 +68,7 @@ check "sections_need_chrome: india → yes" sections_need_chrome india
 section "launchd plist"
 render_plist "$TMP/test.plist" "$HOME/.local/bin/claude"
 check "plist passes plutil -lint" plutil -lint "$TMP/test.plist"
-check "Hour = 6" [ "$(plutil -extract StartCalendarInterval.Hour raw -o - "$TMP/test.plist")" = 6 ]
+check "Hour = 6" [ "$(plutil -extract StartCalendarInterval.0.Hour raw -o - "$TMP/test.plist")" = 6 ]
 check "runs 'brief run --scheduled'" [ "$(plutil -extract ProgramArguments.3 raw -o - "$TMP/test.plist")" = "--scheduled" ]
 check "absolute brief path" [ "$(plutil -extract ProgramArguments.1 raw -o - "$TMP/test.plist")" = "$REPO_DIR/brief" ]
 check "PATH includes ~/.local/bin and /opt/homebrew/bin" bash -c "p=\$(plutil -extract EnvironmentVariables.PATH raw -o - '$TMP/test.plist'); case \$p in *$HOME/.local/bin*/opt/homebrew/bin*) exit 0;; *) exit 1;; esac"

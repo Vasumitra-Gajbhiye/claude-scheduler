@@ -147,7 +147,7 @@ When it runs:
   - open tasks due within 14 days (⏰ for today or tomorrow, 🆕 for rows added since yesterday);
   - anything overdue from the last 3 days;
   - exams in the next 14 days.
-- **Evening (`TASKS_EVENING_HOUR`, default 19:00):** same LaunchAgent, its own message, sent only when something needs it:
+- **Evening (`TASKS_EVENING_HOUR`, default 19:00):** same LaunchAgent (it has a trigger at that hour; rerun `./brief install` after changing it), its own message, sent only when something needs it:
   - tasks due within 2 days;
   - a one-time "missed? still open" note after a deadline;
   - exams 7, 3 and 1 days out;

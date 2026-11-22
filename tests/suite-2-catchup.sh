@@ -64,4 +64,5 @@ rm -rf "$PH2/state/run.lock"
 render_plist "$TMP/catchup.plist" "$HOME/.local/bin/claude"
 check "plist: RunAtLoad = true (catch-up at login)" [ "$(plutil -extract RunAtLoad raw -o - "$TMP/catchup.plist")" = true ]
 check "plist: StartInterval = 1800 (retry every 30 min)" [ "$(plutil -extract StartInterval raw -o - "$TMP/catchup.plist")" = 1800 ]
-check "plist: still fires at 06:00" [ "$(plutil -extract StartCalendarInterval.Hour raw -o - "$TMP/catchup.plist")" = 6 ]
+check "plist: still fires at 06:00" [ "$(plutil -extract StartCalendarInterval.0.Hour raw -o - "$TMP/catchup.plist")" = 6 ]
+check "plist: also fires at the evening to-do hour (19:00)" [ "$(plutil -extract StartCalendarInterval.1.Hour raw -o - "$TMP/catchup.plist"):$(plutil -extract StartCalendarInterval.1.Minute raw -o - "$TMP/catchup.plist")" = 19:0 ]

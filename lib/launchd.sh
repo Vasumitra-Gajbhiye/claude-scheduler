@@ -18,11 +18,11 @@ launchd_path() {
 # render_plist <out_file> <claude_bin>
 render_plist() {
   local out="$1" claude="$2"
-  R_BRIEF="$BRIEF_BIN" R_REPO="$REPO_DIR" R_LOGS="$LOGS_DIR" R_HOUR="$((10#$RUN_HOUR))" R_MINUTE="$((10#$RUN_MINUTE))" R_INTERVAL="$(( 10#$RETRY_MINUTES * 60 ))" \
+  R_BRIEF="$BRIEF_BIN" R_REPO="$REPO_DIR" R_LOGS="$LOGS_DIR" R_HOUR="$((10#$RUN_HOUR))" R_MINUTE="$((10#$RUN_MINUTE))" R_INTERVAL="$(( 10#$RETRY_MINUTES * 60 ))" R_EVHOUR="$((10#${TASKS_EVENING_HOUR:-19}))" \
   R_PATH="$(launchd_path "$claude")" perl -pe '
     sub x { my $s = shift; $s =~ s/&/&amp;/g; $s =~ s/</&lt;/g; $s =~ s/>/&gt;/g; $s }
     s/__BRIEF__/x($ENV{R_BRIEF})/ge; s/__REPO__/x($ENV{R_REPO})/ge; s/__LOGS__/x($ENV{R_LOGS})/ge;
-    s/__HOUR__/$ENV{R_HOUR}/g; s/__INTERVAL__/$ENV{R_INTERVAL}/g; s/__MINUTE__/$ENV{R_MINUTE}/g; s/__PATH__/x($ENV{R_PATH})/ge;
+    s/__HOUR__/$ENV{R_HOUR}/g; s/__EVHOUR__/$ENV{R_EVHOUR}/g; s/__INTERVAL__/$ENV{R_INTERVAL}/g; s/__MINUTE__/$ENV{R_MINUTE}/g; s/__PATH__/x($ENV{R_PATH})/ge;
   ' "$PLIST_TEMPLATE" >"$out"
   plutil -lint "$out" >/dev/null
 }
