@@ -18,11 +18,11 @@ launchd_path() {
 # render_plist <out_file> <claude_bin>
 render_plist() {
   local out="$1" claude="$2"
-  R_BRIEF="$BRIEF_BIN" R_REPO="$REPO_DIR" R_LOGS="$LOGS_DIR" R_HOUR="$((10#$RUN_HOUR))" R_MINUTE="$((10#$RUN_MINUTE))" \
+  R_BRIEF="$BRIEF_BIN" R_REPO="$REPO_DIR" R_LOGS="$LOGS_DIR" R_HOUR="$((10#$RUN_HOUR))" R_MINUTE="$((10#$RUN_MINUTE))" R_INTERVAL="$(( 10#$RETRY_MINUTES * 60 ))" \
   R_PATH="$(launchd_path "$claude")" perl -pe '
     sub x { my $s = shift; $s =~ s/&/&amp;/g; $s =~ s/</&lt;/g; $s =~ s/>/&gt;/g; $s }
     s/__BRIEF__/x($ENV{R_BRIEF})/ge; s/__REPO__/x($ENV{R_REPO})/ge; s/__LOGS__/x($ENV{R_LOGS})/ge;
-    s/__HOUR__/$ENV{R_HOUR}/g; s/__MINUTE__/$ENV{R_MINUTE}/g; s/__PATH__/x($ENV{R_PATH})/ge;
+    s/__HOUR__/$ENV{R_HOUR}/g; s/__INTERVAL__/$ENV{R_INTERVAL}/g; s/__MINUTE__/$ENV{R_MINUTE}/g; s/__PATH__/x($ENV{R_PATH})/ge;
   ' "$PLIST_TEMPLATE" >"$out"
   plutil -lint "$out" >/dev/null
 }
@@ -32,6 +32,8 @@ validate_time() {
   case "$RUN_MINUTE" in ''|*[!0-9]*) die "RUN_MINUTE must be 0-59 (got '$RUN_MINUTE')" ;; esac
   [ "$((10#$RUN_HOUR))" -le 23 ] || die "RUN_HOUR must be 0-23"
   [ "$((10#$RUN_MINUTE))" -le 59 ] || die "RUN_MINUTE must be 0-59"
+  case "$RETRY_MINUTES" in ''|*[!0-9]*) die "RETRY_MINUTES must be a number of minutes" ;; esac
+  [ "$((10#$RETRY_MINUTES))" -ge 10 ] || die "RETRY_MINUTES must be at least 10"
 }
 
 cmd_install() {
@@ -79,7 +81,8 @@ cmd_install() {
   launchctl enable "$(launchd_domain)/$LABEL" 2>/dev/null || true
   launchd_loaded || die "LaunchAgent did not load."
   say "✅ LaunchAgent loaded: $LABEL"
-  say "   Next run: $(next_run_text)"
+  say "   Next run: $(next_run_text). If a run is missed or fails, it catches up at login or wake and retries every ${RETRY_MINUTES} min (at most ${MAX_DAILY_ATTEMPTS} attempts a day)."
+  say "   Loading the agent also runs a check right now: if it's past the run time and today's brief hasn't gone out, it starts."
   say ""
   say "Test the real launchd environment now:  ./brief kickstart  then  ./brief logs -f"
 }

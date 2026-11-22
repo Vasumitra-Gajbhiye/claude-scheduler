@@ -104,7 +104,7 @@ section "Full pipeline (fake claude + fake curl)"
 PH="$TMP/pipe"; mkdir -p "$PH"
 cp "$BRIEF_CONFIG" "$TMP/pipe.env"
 printf 'CLAUDE_BIN="%s"\n' "$TESTS_DIR/fake-claude.sh" >>"$TMP/pipe.env"
-pipe() { BRIEF_HOME="$PH" BRIEF_CONFIG="$TMP/pipe.env" CURL_BIN="$TESTS_DIR/fake-curl.sh" TG_NO_SLEEP=1 BRIEF_SKIP_CHROME=1 \
+pipe() { BRIEF_HOME="$PH" BRIEF_CONFIG="$TMP/pipe.env" CURL_BIN="$TESTS_DIR/fake-curl.sh" TG_NO_SLEEP=1 BRIEF_SKIP_CHROME=1 BRIEF_SKIP_NETWORK_WAIT=1 \
   ANTHROPIC_API_KEY=sk-should-be-unset "$REPO_DIR/brief" "$@" >"$TMP/pipe.out" 2>&1; }
 export FAKE_CALLS FAKE_COUNTER FAKE_RESPONSES
 reset_fake "200${T}{\"ok\":true}"
@@ -145,7 +145,7 @@ check "--only tech runs with --no-chrome" grep -qx -- --no-chrome "$rd2/fake-arg
 
 reset_fake "200${T}{\"ok\":true}"
 FAKE_CLAUDE_MODE=ok pipe run --scheduled; rc=$?
-check "--scheduled skips when already delivered today" bash -c "[ $rc = 0 ] && grep -q 'already delivered' '$TMP/pipe.out' && [ ! -s '$FAKE_CALLS' ]"
+check "--scheduled skips when already delivered today" bash -c "[ $rc = 0 ] && grep -q 'already delivered' '$PH/state/last_check' && [ ! -s '$FAKE_CALLS' ]"
 touch "$PH/state/force_next"
 FAKE_CLAUDE_MODE=ok pipe run --scheduled --only tech; rc=$?
 check "--scheduled runs once when kickstart left force_next" bash -c "[ $rc = 0 ] && [ -s '$FAKE_CALLS' ] && [ ! -e '$PH/state/force_next' ]"

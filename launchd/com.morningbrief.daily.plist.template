@@ -17,7 +17,8 @@
   <key>WorkingDirectory</key>
   <string>__REPO__</string>
 
-  <!-- Local time. launchd runs a missed job when the Mac wakes; `run --scheduled` skips if already delivered. -->
+  <!-- Local time. launchd runs a missed job when the Mac wakes. `run --scheduled` decides whether a
+       brief is actually due (past the run time, not yet delivered today, attempts left). -->
   <key>StartCalendarInterval</key>
   <dict>
     <key>Hour</key>
@@ -26,8 +27,11 @@
     <integer>__MINUTE__</integer>
   </dict>
 
+  <!-- Catch-up: also check at login (agent load) and every RETRY_MINUTES. Cheap and silent when nothing is due. -->
   <key>RunAtLoad</key>
-  <false/>
+  <true/>
+  <key>StartInterval</key>
+  <integer>__INTERVAL__</integer>
 
   <key>EnvironmentVariables</key>
   <dict>
