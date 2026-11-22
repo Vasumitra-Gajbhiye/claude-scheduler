@@ -240,6 +240,17 @@ build_messages() {
     while IFS="$TAB" read -r s c f; do log_only "Dropped item ($c): $f $s"; done <"$run_dir/items.clean.tsv.dropped"
   fi
 
+  # 📝 To-do & exams, from this morning's Notion snapshot (dry runs: this run's own snapshot).
+  if [ "${TASKS_IN_BRIEF:-0}" = 1 ]; then
+    local snap="$TASKS_SNAPSHOT" nt ne
+    [ "$DRY_RUN" = 1 ] && [ -f "$TASKS_RUN_DIR/tasks.clean.tsv" ] && snap="$TASKS_RUN_DIR/tasks.clean.tsv"
+    if tasks_morning_section "$send/55-todo.txt" "$today" "${BRIEF_NOW_HM:-$(TZ=$BRIEF_TZ date '+%H%M')}" "$snap"; then
+      nt="$(grep -cE '^[0-9]+\. ' "$send/55-todo.txt" || true)"; ne="$(grep -c '^• ' "$send/55-todo.txt" || true)"
+      counts="${counts}📝 To-do: ${nt:-0} open$([ "${ne:-0}" -gt 0 ] && printf ', %s exam(s)' "$ne")
+"
+    fi
+  fi
+
   reminders_due "$today" "$SEEN_FILE" "$run_dir/items.clean.tsv" "$REMINDERS_FILE" "$send/60-reminders.txt" "$run_dir/reminded.txt"
   if [ -s "$send/60-reminders.txt" ]; then
     counts="${counts}🔔 Reminders: $(grep -cE '^[0-9]+\. ' "$send/60-reminders.txt")
@@ -342,6 +353,8 @@ cmd_run() {
     if [ -f "$STATE_DIR/force_next" ]; then
       rm -f "$STATE_DIR/force_next"; forced=1
     elif ! scheduled_gate "$today"; then
+      # No brief due. The evening to-do check rides on the same LaunchAgent.
+      tasks_evening_due "$today" && exec "$BRIEF_BIN" tasks --slot evening --scheduled
       exit 0
     fi
   fi
@@ -396,6 +409,25 @@ cmd_run() {
   if sections_need_chrome "$sections"; then
     chrome=1
     ensure_chrome "$scheduled"
+  fi
+
+  # ---- to-dos (full runs only): read Outlook, update Notion, refresh the snapshot for the 📝 section.
+  # A failure here never stops the brief; the section then uses the last snapshot.
+  TASKS_IN_BRIEF=0; TASKS_FAIL_REASON=""
+  if [ -z "$only" ] && tasks_configured; then
+    TASKS_IN_BRIEF=1
+    log "📝 Checking Outlook + Notion for to-dos (timeout ${TASKS_MAX_SECONDS}s)…"
+    if tasks_sync morning "$DRY_RUN"; then
+      log "   to-dos: outlook $TASKS_OUTLOOK, read state $TASKS_READSTATE, $(tasks_status_get created) new rows"
+    else
+      warn "To-do check failed: $TASKS_FAIL_REASON (the 📝 section uses the last snapshot)"
+      EXTRA_NOTES="${EXTRA_NOTES}To-do check: $TASKS_FAIL_REASON
+"
+    fi
+    [ "$TASKS_READSTATE" = unsafe ] && EXTRA_NOTES="${EXTRA_NOTES}Outlook marks mail as read when opened, so no mail was opened. Fix: Outlook Settings → Mail → Message handling → Don't automatically mark items as read
+"
+    [ "$TASKS_OUTLOOK" = fail ] && EXTRA_NOTES="${EXTRA_NOTES}Outlook could not be read (to-dos from Notion only)
+"
   fi
 
   render_prompt "$RUN_DIR" "$sections" "$chrome" "$today" || fail_run "could not build the prompt (see log)"
@@ -515,6 +547,9 @@ cmd_status() {
     fi
   fi
   say "  Memory:        $(wc -l <"$SEEN_FILE" 2>/dev/null | tr -d ' ' || echo 0) items in state/seen.tsv"
+  if tasks_configured; then
+    say "  To-dos:        last sync $(tasks_status_get time || true), Outlook $(tasks_status_get outlook), read state $(tasks_status_get readstate); evening check $(cat "$STATE_DIR/tasks_last_evening" 2>/dev/null || echo never) (./brief tasks --status)"
+  fi
   local nb; nb="$(sources_blocked "$(today_iso)" | grep -c . || true)"
   say "  Skipped sites: ${nb:-0}$( [ "${nb:-0}" -gt 0 ] && printf " (%s)" "$(sources_blocked "$(today_iso)" | cut -f1 | tr "\n" " " | sed "s/ $//")") (see ./brief sources)"
 }

@@ -76,26 +76,40 @@ claude_kill() {
   CLAUDE_PGID=""
 }
 
-# run_claude <run_dir> <chrome:0|1>
+# run_claude <run_dir> <chrome:0|1> [profile: brief|tasks]
 # Returns 0 on success; 124 on timeout; otherwise claude's exit code.
 # Writes result.json, claude.stderr in the run dir.
+#   brief: WebSearch/WebFetch + read-only Chrome, --strict-mcp-config (no connectors at all).
+#   tasks: read-only Chrome + guarded inbox clicks + a few Notion tools, no web tools; connectors load
+#          (Notion needs them), every other connector is denied, and lib/hooks/guard.sh checks each call.
 run_claude() {
-  local run_dir="$1" chrome="$2" allowed denied rc waited=0 t chrome_flag
+  local run_dir="$1" chrome="$2" profile="${3:-brief}" allowed denied rc waited=0 t chrome_flag timeout="$MAX_SECONDS"
+  local -a extra=()
   # Read/Edit rules are absolute (leading // = filesystem root) and scoped to this run dir.
-  allowed="WebSearch,WebFetch,Read(/$run_dir/**),Edit(/$run_dir/**)"
-  denied="Bash,$(echo $CHROME_DENY_TOOLS | tr ' ' ',')"
+  if [ "$profile" = tasks ]; then
+    allowed="Read(/$run_dir/**),Edit(/$run_dir/**),$(echo $TASKS_NOTION_TOOLS | tr ' ' ',')"
+    denied="Bash,WebSearch,WebFetch,Task,Agent,$(echo $TASKS_DENY_TOOLS | tr ' ' ','),$(echo $CHROME_DENY_TOOLS | tr ' ' '\n' | grep -v '__computer$' | tr '\n' ',' | sed 's/,$//')"
+    timeout="${TASKS_MAX_SECONDS:-900}"
+    extra=(--settings "$(tasks_guard_dir "$run_dir")/settings.json")
+  else
+    allowed="WebSearch,WebFetch,Read(/$run_dir/**),Edit(/$run_dir/**)"
+    denied="Bash,$(echo $CHROME_DENY_TOOLS | tr ' ' ',')"
+    extra=(--strict-mcp-config)
+  fi
   if [ "$chrome" = 1 ]; then
     chrome_flag="--chrome"
     allowed="$allowed,$(echo $CHROME_READ_TOOLS | tr ' ' ',')"
+    [ "$profile" = tasks ] && allowed="$allowed,mcp__claude-in-chrome__computer"
   else
     chrome_flag="--no-chrome"
   fi
 
-  log_only "claude: $CLAUDE_BIN -p --model $MODEL $chrome_flag (timeout ${MAX_SECONDS}s)"
+  log_only "claude: $CLAUDE_BIN -p --model $MODEL $chrome_flag profile=$profile (timeout ${timeout}s)"
   log_only "claude: allowed = $allowed"
 
   # setpgrp gives claude (and any MCP children) its own process group we can kill as a whole.
-  # --strict-mcp-config: ignore other MCP servers/connectors (Chrome still comes from --chrome).
+  # brief: --strict-mcp-config ignores other MCP servers/connectors (Chrome still comes from --chrome).
+  # tasks: --settings adds the guard hooks.
   (
     cd "$run_dir" || exit 1
     exec perl -e 'setpgrp(0, 0); exec @ARGV or die "exec failed: $!\n"' \
@@ -105,7 +119,7 @@ run_claude() {
       --output-format json \
       --permission-mode dontAsk \
       --permission-prompts none \
-      --strict-mcp-config \
+      "${extra[@]}" \
       --no-session-persistence \
       --allowedTools "$allowed" \
       --disallowedTools "$denied" \
@@ -117,8 +131,8 @@ run_claude() {
   while kill -0 "$CLAUDE_PGID" 2>/dev/null; do
     sleep 2; waited=$(( waited + 2 )); t=$(( t + 2 ))
     if [ "$t" -ge 60 ]; then t=0; log_only "claude: still running (${waited}s)"; fi
-    if [ "$waited" -ge "$MAX_SECONDS" ]; then
-      log_only "claude: timeout after ${MAX_SECONDS}s, killing process group $CLAUDE_PGID"
+    if [ "$waited" -ge "$timeout" ]; then
+      log_only "claude: timeout after ${timeout}s, killing process group $CLAUDE_PGID"
       claude_kill
       wait 2>/dev/null
       return 124

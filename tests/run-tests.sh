@@ -23,7 +23,7 @@ EOF
 chmod 600 "$BRIEF_CONFIG"
 
 # shellcheck disable=SC1090
-for l in common telegram state sources claude chrome run launchd doctor; do
+for l in common telegram state sources claude chrome tasks run launchd doctor; do
   [ -f "$REPO_DIR/lib/$l.sh" ] && . "$REPO_DIR/lib/$l.sh"
 done
 load_config

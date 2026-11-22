@@ -73,6 +73,8 @@ Paths are resolved from the script's own location, so the repo can live anywhere
 | `./brief doctor` | Health check: ✅/❌ plus a fix for each item. |
 | `./brief chrome-check` | Live one-turn test that `claude -p` can actually use the Claude in Chrome extension. It's the only reliable check of the extension pairing. Uses a tiny bit of your plan. |
 | `./brief sources [--reset <site>]` | Which websites keep failing and are being skipped; `--reset` brings one back. |
+| `./brief tasks [--dry-run] [--slot morning\|evening]` | To-dos & exams: read Outlook (read-only), update the Notion Tasks/Exams databases, send what needs doing. `--dry-run` changes nothing and sends nothing. |
+| `./brief tasks --status` | Last to-do sync, the open list, and the read-state check. |
 | `./brief install` | Fills `CLAUDE_BIN` into config, renders the LaunchAgent with absolute paths and `RUN_HOUR:RUN_MINUTE`, then `launchctl bootstrap`s it. Idempotent. **Mac Mini only.** It refuses elsewhere unless you pass `--yes`. |
 | `./brief install --print` | Renders and lints the plist, prints it, installs nothing. |
 | `./brief uninstall` | Unloads and removes the LaunchAgent, which pauses the brief. |
@@ -134,6 +136,59 @@ So something found on Monday that happens on Sunday is sent Mon (new), then remi
 
 The reminder uses whichever date comes first and is still ahead: the registration deadline or the event itself. Internships are reminded only in the last 14 days before their deadline. Reminders are never sent twice in a day, never on the day an item first appears, and never once its date has passed. History is kept in `state/reminders.tsv`.
 
+### To-dos & exams from Outlook
+
+Optional (`TASKS_ENABLED=1`). A separate Claude run reads your Outlook inbox and keeps two Notion databases up to date:
+- **Tasks:** form deadlines (e.g. a weekly outing application), assignment submissions, sign-ups with a deadline, and a "Prepare: …" task 3 days before each exam;
+- **Exams:** mid-sems, end-sems and announced quizzes, with date, time, venue and portions.
+
+When it runs:
+- **Morning:** inside the 06:00 brief, before the news research. The brief gets a 📝 **To-do & exams** message listing:
+  - open tasks due within 14 days (⏰ for today or tomorrow, 🆕 for rows added since yesterday);
+  - anything overdue from the last 3 days;
+  - exams in the next 14 days.
+- **Evening (`TASKS_EVENING_HOUR`, default 19:00):** same LaunchAgent, its own message, sent only when something needs it:
+  - tasks due within 2 days;
+  - a one-time "missed? still open" note after a deadline;
+  - exams 7, 3 and 1 days out;
+  - rows added from email today;
+  - Thursday to Saturday, a once-a-week heads-up if no outing email arrived that week.
+  It buzzes only if something is due later today or tomorrow morning.
+
+A task counts as done when you tick **Done** in Notion. The bot also ticks its own rows when it sees a confirmation email.
+
+**It can never send, reply to, or change email.** Three independent layers make sure of that:
+1. **Tool lists:** the run gets only:
+   - the read-only Chrome tools;
+   - one Notion read/create/update set;
+   - files in its own run dir.
+   It gets no web tools and no shell. Every other connector (Gmail, Drive, Calendar…) and every Notion delete/move/schema tool is denied.
+2. **A guard hook** ([lib/hooks/guard.sh](lib/hooks/guard.sh)) checks every single tool call before it runs. It blocks the call unless it is one of these:
+   - navigating to the Outlook inbox URL itself (no compose or deeplink URLs, no settings, no links from emails);
+   - a left-click, by element reference, on a row of the inbox message list, which opens that message in the reading pane. Typing, keys, coordinates and every other click are blocked, so Reply, Forward, New mail and Send can't be pressed;
+   - creating rows in the two configured databases, or `update_properties` on rows the bot created itself (ids are kept in `state/notion_bot_pages.txt`). Rows you made are never edited, and nothing is ever deleted.
+   The guard's state lives outside the run dir, so the run can't rewrite its own rules.
+3. **Read-state tripwire:** before opening an unread message, the guard notes that it's unread. After opening it, the run must re-read the list. If the message lost its "Unread" mark, all further clicks are blocked, nothing more is opened, and you get a ⚠️ telling you to fix the Outlook setting.
+
+Email content is treated as untrusted data. Form links are only copied into Notion, never opened.
+
+**Setup**
+1. In Outlook on the web: Settings → Mail → Message handling → Mark as read → **Don't automatically mark items as read**.
+2. Sign in to Outlook in the Chrome profile the brief uses, and run `./brief chrome-check`.
+3. Add these columns to your Notion databases. Existing rows can stay blank.
+   - **Tasks:** `Task` (title), `Done` (checkbox), `Priority` (select: Very High, High, Moderate, Low), `Date` (date), `Type` (select: To-do, Outing, Assignment, Exam prep, Event signup), `Added by` (select: Bot, Me), `Link` (url), `Source` (text), `Bot key` (text).
+   - **Exams:** `Name` (title), `Date` (date), `Info` (text), `Type` (select: Mid-sem, End-sem, Quiz), `Added by`, `Source`, `Bot key`.
+4. Make sure the Notion connector is connected on claude.ai for the same account Claude Code is logged in with.
+5. Put both data sources' `collection://…` ids in `config.env` as `NOTION_TASKS_DS` and `NOTION_EXAMS_DS`, and set `TASKS_ENABLED=1`.
+6. Run `./brief tasks --dry-run`. It reads Outlook and Notion, changes nothing, sends nothing, and prints what it would add and send.
+7. Run `./brief tasks --status` and `./brief doctor`.
+
+State files:
+- `state/tasks_snapshot.tsv`: the open list from the last sync;
+- `state/task_nags.tsv`: which one-time nags were sent;
+- `state/mail_seen.tsv`: mail already handled, so it isn't opened again;
+- `state/notion_bot_pages.txt`: the bot's own Notion rows.
+
 ### Websites that keep failing
 
 Each run reports, per website, whether it could be read (`sources.tsv` in the run dir).
@@ -168,8 +223,10 @@ So:
 
 ```
 brief                     CLI entry point
-lib/                      common, telegram, state, sources, claude, chrome, run, launchd, doctor
+lib/                      common, telegram, state, sources, claude, chrome, tasks, run, launchd, doctor
+lib/hooks/guard.sh        checks every tool call of the to-do run (see "To-dos & exams from Outlook")
 prompts/brief.md          inner prompt template ({{PLACEHOLDERS}} filled each run)
+prompts/tasks.md          to-do run prompt (Outlook → Notion)
 prompts/sources.md        sources per section            (edit me)
 prompts/profile.md        who you are       (gitignored; edit me)
 config.env                your secrets      (gitignored, chmod 600)
