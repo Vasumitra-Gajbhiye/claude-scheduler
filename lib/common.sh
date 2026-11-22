@@ -5,6 +5,7 @@
 # ---- paths (everything relative to the repo root; BRIEF_HOME overrides data dirs for tests)
 REPO_DIR="${REPO_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 DATA_DIR="${BRIEF_HOME:-$REPO_DIR}"
+BRIEF_BIN="${BRIEF_BIN:-$REPO_DIR/brief}"
 CONFIG_FILE="${BRIEF_CONFIG:-$REPO_DIR/config.env}"
 PROMPTS_DIR="$REPO_DIR/prompts"
 STATE_DIR="$DATA_DIR/state"
