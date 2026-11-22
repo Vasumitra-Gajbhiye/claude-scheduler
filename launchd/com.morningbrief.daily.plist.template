@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Rendered by `./brief install`. Do not edit the copy in ~/Library/LaunchAgents; edit config.env and rerun install. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.morningbrief.daily</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__BRIEF__</string>
+    <string>run</string>
+    <string>--scheduled</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO__</string>
+
+  <!-- Local time. launchd runs a missed job when the Mac wakes; `run --scheduled` skips if already delivered. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>__HOUR__</integer>
+    <key>Minute</key>
+    <integer>__MINUTE__</integer>
+  </dict>
+
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__PATH__</string>
+    <key>LANG</key>
+    <string>en_US.UTF-8</string>
+    <key>LC_ALL</key>
+    <string>en_US.UTF-8</string>
+  </dict>
+
+  <!-- Avoid background throttling during a long research run. -->
+  <key>ProcessType</key>
+  <string>Interactive</string>
+
+  <key>StandardOutPath</key>
+  <string>__LOGS__/launchd.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOGS__/launchd.err.log</string>
+</dict>
+</plist>
