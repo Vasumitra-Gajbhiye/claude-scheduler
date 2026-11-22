@@ -23,7 +23,7 @@ if printf '%s' "$prompt" | grep -q 'You are the to-do step'; then
   printf '%s|Course Office|Mid-term feedback form\ttask\tyes\tfeedback form\tCourse Office\n%s|IT|Maintenance\tignore\tno\tIT notice\tITHelpdesk\n%s|Course Office|Consent form\tskipped\tno\tpane did not load\tCourse Office\n' "$t0" "$t0" "$t0" >mail.tsv
   rs=ok; [ "$tm" = unsafe ] && rs=unsafe
   nt=ok; [ "$tm" = nonotion ] && nt=fail
-  printf 'outlook=ok\nreadstate=%s\nnotion=%s\nouting_week=yes\n' "$rs" "$nt" >status.txt
+  printf 'outlook=ok\nreadstate=%s\nnotion=%s\nouting_week=yes\noldest_row=%s\n' "$rs" "$nt" "${FAKE_TASKS_OLDEST:-$(TZ=Asia/Kolkata date -v-3d +%F)}" >status.txt
   : >notes.txt
   echo '{"type":"result","subtype":"success","is_error":false,"num_turns":9,"duration_ms":30000,"total_cost_usd":0.2,"result":"1 created, 3 open, 1 exam","permission_denials":[]}'
   exit 0

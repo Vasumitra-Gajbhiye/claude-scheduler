@@ -21,7 +21,7 @@ TASKS_NOTION_TOOLS="mcp__claude_ai_Notion__notion-search mcp__claude_ai_Notion__
 # (Anything not allowed is denied under dontAsk anyway, and the guard denies everything unlisted.)
 TASKS_DENY_TOOLS="mcp__claude_ai_Gmail mcp__claude_ai_Google_Drive mcp__claude_ai_Google_Calendar mcp__claude_ai_Lovable mcp__claude_ai_PostHog mcp__claude_ai_Claude_Docs mcp__claude_ai_Notion__notion-delete-pages mcp__claude_ai_Notion__notion-delete-databases mcp__claude_ai_Notion__notion-move-pages mcp__claude_ai_Notion__notion-duplicate-page mcp__claude_ai_Notion__notion-update-data-source mcp__claude_ai_Notion__notion-create-database mcp__claude_ai_Notion__notion-create-view mcp__claude_ai_Notion__notion-update-view mcp__claude_ai_Notion__notion-create-comment mcp__claude_ai_Notion__notion-update-comment mcp__claude_ai_Notion__notion-delete-comment mcp__claude_ai_Notion__notion-send-message-to-session mcp__claude_ai_Notion__notion-spawn-session mcp__claude_ai_Notion__notion-stop-session mcp__claude_ai_Notion__notion-calendar-create-events mcp__claude_ai_Notion__notion-calendar-update-events mcp__claude_ai_Notion__notion-calendar-cancel-events mcp__claude_ai_Notion__notion-restore-pages mcp__claude_ai_Notion__notion-restore-version mcp__claude_ai_Notion__notion-upload-skill mcp__claude_ai_Notion__notion-update-skill-settings mcp__claude_ai_Notion__notion-convert-page-to-skill mcp__claude_ai_Notion__notion-update-sidebar-tabs mcp__claude_ai_Notion__notion-update-page-favorites mcp__claude_ai_Notion__notion-create-folder mcp__claude_ai_Notion__notion-update-folder mcp__claude_ai_Notion__notion-create-file-upload mcp__claude_ai_Notion__notion-create-attachment mcp__claude_ai_Notion__notion-create-meeting-note mcp__claude_ai_Notion__notion-convert-to-meetings-database mcp__claude_ai_Notion__notion-create-suggested-edit mcp__claude_ai_Notion__notion-resolve-suggested-edit mcp__claude_ai_Notion__notion-set-comment-reaction mcp__claude_ai_Notion__notion-set-discussion-resolved mcp__claude_ai_Notion__notion-link-meeting-note-to-calendar-event mcp__claude_ai_Notion__notion-complete-mcp-setup"
 
-TASKS_RUN_DIR=""; TASKS_FAIL_REASON=""; TASKS_READSTATE="ok"; TASKS_OUTLOOK="skipped"; TASKS_OUTING_WEEK="no"
+TASKS_RUN_DIR=""; TASKS_FAIL_REASON=""; TASKS_READSTATE="ok"; TASKS_OUTLOOK="skipped"; TASKS_OUTING_WEEK="no"; TASKS_OLDEST=""; TASKS_SINCE=""
 
 tasks_configured() { [ "${TASKS_ENABLED:-0}" = 1 ] && [ -n "${NOTION_TASKS_DS:-}" ] && [ -n "${NOTION_EXAMS_DS:-}" ]; }
 tasks_guard_dir()  { printf '%s.guard' "$1"; }
@@ -166,6 +166,8 @@ tasks_sync() {
   TASKS_OUTLOOK="${TASKS_OUTLOOK:-fail}"
   { [ -e "$g/readstate_unsafe" ] || grep -q '^readstate=unsafe' "$run_dir/status.txt" 2>/dev/null; } && TASKS_READSTATE="unsafe"
   grep -q '^outing_week=yes' "$run_dir/status.txt" 2>/dev/null && TASKS_OUTING_WEEK="yes"
+  TASKS_OLDEST="$(sed -n 's/^oldest_row=//p' "$run_dir/status.txt" 2>/dev/null | head -1 | tr -d ' ')"
+  TASKS_SINCE="$(date_add_days "$today" "-${TASKS_MAIL_DAYS:-3}")"
   awk -F'\t' -v w="$(week_start "$today")" '$1 >= w && $3 == "outing"' "$TASKS_MAIL_SEEN" | grep -q . && TASKS_OUTING_WEEK="yes"
 
   tasks_parse "$run_dir/tasks.tsv" "$run_dir/tasks.clean.tsv"
@@ -187,6 +189,7 @@ tasks_sync() {
   {
     echo "time=$(now_human)"; echo "slot=$slot"; echo "dry=$dry"
     echo "outlook=$TASKS_OUTLOOK"; echo "readstate=$TASKS_READSTATE"; echo "outing_week=$TASKS_OUTING_WEEK"
+    echo "oldest_row=$TASKS_OLDEST"
     echo "created=$(awk -F'\t' '$1 ~ /created$/' "$run_dir/actions.tsv" 2>/dev/null | wc -l | tr -d ' ')"
     echo "open=$(grep -c '^task' "$run_dir/tasks.clean.tsv" 2>/dev/null || true)"
     echo "exams=$(grep -c '^exam' "$run_dir/tasks.clean.tsv" 2>/dev/null || true)"
@@ -449,6 +452,10 @@ cmd_tasks() {
 tasks_footer() {
   if [ "$TASKS_READSTATE" = unsafe ]; then
     printf '\n⚠️ Outlook marked a message as read when it was opened, so no more mail was opened. In Outlook: Settings → Mail → Message handling → "Don'\''t automatically mark items as read".\n'
+  fi
+  # Outlook read, but not as far back as asked (e.g. the list wouldn't page): say so.
+  if [ "$TASKS_OUTLOOK" = ok ] && [ -n "$TASKS_SINCE" ] && { [ -z "$TASKS_OLDEST" ] || [[ "$TASKS_OLDEST" > "$TASKS_SINCE" ]]; }; then
+    printf '\n📭 Only checked mail back to %s (wanted %s); older mail is picked up next run.\n' "${TASKS_OLDEST:-the newest rows}" "$TASKS_SINCE"
   fi
   if [ "$TASKS_OUTLOOK" = fail ]; then
     printf '\n⚠️ Couldn'\''t read Outlook this time (Chrome or sign-in?). Notion reminders still work.\n'

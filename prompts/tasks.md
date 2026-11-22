@@ -43,22 +43,30 @@ Never ask questions, never wait for input, never stop to request permission. If 
   - "date:Date:start" is "YYYY-MM-DD", or "YYYY-MM-DDTHH:MM:00+05:30" when a time is known.
   - "date:Date:is_datetime" is 1 when a time is known, otherwise 0.
 - Checkbox values are "__YES__" or "__NO__".
-- Use notion-query-data-sources in "rows" mode with filters to read rows. Fall back to SQL mode only if rows mode fails.
+- Notion queries are rate-limited, so keep them to a minimum:
+  - Read each database ONCE, before Step 3, with notion-query-data-sources in "rows" mode (never SQL unless rows mode fails), limit 100:
+    - Tasks: Date between {{PAST_7D}} and {{END_60D}}, done or not (you need the done ones for duplicate and outing checks);
+    - Exams: Date between {{PAST_7D}} and {{END_60D}}.
+  - Use those results for every duplicate check, the outing check and the snapshot. Never query once per email.
+  - Rows you create during the run: add them to your own list instead of re-querying.
+  - Undated bot rows can't be found by the date filter: before creating an undated row, do one notion-search for its title.
 
 # Step 1: the inbox list
 - Open a NEW tab and navigate to https://outlook.office.com/mail/inbox. It may redirect to outlook.cloud.microsoft, which is fine.
 - Call read_page with filter "interactive" on that tab.
   - The rows are the `option` elements inside `listbox "Message list…"`.
   - Each row's label contains: an "Unread" marker if unread, the sender, the subject, the time or date received, and a preview.
-- Outlook only renders the visible rows. To see older mail:
-  - scroll down over the message list with the computer tool (action "scroll", scroll_direction "down", a coordinate inside the list);
-  - then call read_page again;
-  - stop once you reach mail older than {{SINCE_DATE}}, or after 8 scrolls.
+- Outlook only renders about 10-15 rows at a time. You MUST page back until you reach mail older than {{SINCE_DATE}}:
+  - call the computer tool with action "scroll_to" and the ref of the LAST message row from your latest read_page. That loads older rows;
+  - then call read_page with filter "interactive" again;
+  - repeat until a row is older than {{SINCE_DATE}}, or the list stops growing, or 10 rounds.
+  - Write the received date of the oldest row you saw as oldest_row in status.txt.
 - Work out each row's received date (YYYY-MM-DD) from what Outlook shows ("Fri 5:01 PM", "Yesterday", "20/11/2026"…), relative to today.
 - Mail key for each row = "<received date>|<sender as shown>|<subject as shown>".
 - {{PROCESSED_PATH}} lists mail keys handled on earlier runs, one per line in its first column.
   - Skip those rows completely: don't open them and don't list them again.
   - Match loosely: a row counts as handled if a processed key has the same sender and the same subject (ignore the date part, and treat a subject cut off with "…" or "..." as matching the full one). When you write a key for a row that matches an earlier one, reuse that exact earlier key.
+- Notion may store a Bot key with backslashes before | characters. Ignore backslashes when comparing Bot keys.
 
 # Step 2: decide what's worth opening
 Use the sender, subject and preview.
@@ -90,7 +98,7 @@ For each row you need to open:
 8. If a click is blocked by the guard, don't retry it. Use decision "skipped" for that row.
 
 # Step 3: what to create
-For each actionable email, check Notion for an existing row with the same Bot key (the mail key) before creating anything. Never create duplicates. Also check for an existing row that is clearly the same thing, e.g. the same exam announced twice, and treat it as existing.
+For each actionable email, check the rows you read (see Notion above) for one with the same Bot key (the mail key) before creating anything. Never create duplicates. Also check for an existing row that is clearly the same thing, e.g. the same exam announced twice, and treat it as existing.
 
 - **Sunday outing application** (an email asking students to fill in a form for the Sunday outing by a deadline):
   - Tasks row: Task "Apply: Sunday outing (<Sun date>)", Type Outing, Priority Very High.
@@ -120,11 +128,12 @@ For each actionable email, check Notion for an existing row with the same Bot ke
 - **No deadline stated:** create the to-do with no Date only if it's clearly something the user must do. Otherwise decision "ignore".
 
 # Step 4: snapshot (always, even if Outlook failed)
-Read from Notion:
-- Tasks where Done is not checked and Date is between {{PAST_7D}} and {{END_60D}};
-- Exams where Date is between {{TODAY_ISO}} and {{END_60D}}.
+From the rows you read at the start (plus your own creates, updates and done-ticks in this run; no new queries):
+- open Tasks (Done not checked) with Date between {{PAST_7D}} and {{END_60D}};
+- Exams with Date between {{TODAY_ISO}} and {{END_60D}}.
 
-Also check whether any Tasks row with Type "Outing" (done or not) has a Date in {{WEEK_START}} to {{WEEK_END}}.
+Also check, from the same rows, whether any Tasks row with Type "Outing" (done or not) has a Date in {{WEEK_START}} to {{WEEK_END}}.
+If Outlook couldn't be read, still read both databases once and write the snapshot.
 
 # Output files (in {{RUN_DIR}}/, tab-separated, no header rows, no tabs or newlines inside fields)
 - tasks.tsv: one row per open task and upcoming exam, 8 fields:
@@ -154,6 +163,7 @@ Also check whether any Tasks row with Type "Outing" (done or not) has a Date in 
   - readstate=ok | unsafe
   - notion=ok | fail
   - outing_week=yes | no (yes if an Outing row has a date this week, or an outing email from this week was seen)
+  - oldest_row=YYYY-MM-DD (the oldest inbox row you saw)
 - notes.txt: only real problems (couldn't load Outlook, a blocked call, a missing property, a row you couldn't edit), one short line each. Empty if none.
 
 # Finish

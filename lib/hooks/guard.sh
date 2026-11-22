@@ -126,6 +126,7 @@ if ($tool eq "${C}computer") {
   # Waiting a moment for the reading pane to load changes nothing.
   if ($a eq "wait") { block("wait at most 5 seconds") unless ($ti->{duration} // 0) <= 5; allow() }
   # Scrolling the message list (Outlook only renders the visible rows) changes nothing.
+  if ($a eq "scroll_to") { block("scroll_to needs a ref") unless ($ti->{ref} // "") =~ /^ref_\d+$/; allow() }
   if ($a eq "scroll") {
     block("scroll needs a direction up/down") unless ($ti->{scroll_direction} // "") =~ /^(up|down)$/;
     block("no modifier keys") if defined $ti->{modifiers} && length $ti->{modifiers};

@@ -28,6 +28,7 @@ check "click on an option outside the message list → blocked" blocked "{\"tool
 check "click by coordinates → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"left_click\",\"ref\":\"ref_300\",\"coordinate\":[10,10]}}"
 check "typing → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"type\",\"text\":\"hello\"}}"
 check "key press → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"key\",\"text\":\"cmd+Enter\"}}"
+check "scroll_to a ref → allowed" allowed "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"scroll_to\",\"ref\":\"ref_398\"}}"
 check "a short wait → allowed" allowed "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"wait\",\"duration\":1}}"
 check "a long wait → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"wait\",\"duration\":60}}"
 check "scrolling the list → allowed" allowed "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"scroll\",\"coordinate\":[400,400],\"scroll_direction\":\"down\"}}"
@@ -169,6 +170,10 @@ BRIEF_NOW_HM=1900 tp tasks --slot evening
 trd="$(ls -d "$PT"/runs/*-tasks-evening | tail -1)"
 check "second run passes processed mail to the prompt" bash -c "grep -q 'Mid-term feedback form' '$trd/processed.tsv'"
 
+check "inbox read far enough back → no shortfall note" bash -c "! grep -q 'Only checked mail back' \"\$1\"" _ "$(lastmsg)"
+reset_fake "200${T}{\"ok\":true}"
+FAKE_TASKS_OLDEST="$TODAY" BRIEF_NOW_HM=1900 tp tasks --slot evening
+check "inbox not paged back far enough → 📭 note" grep -q 'Only checked mail back to' "$(lastmsg)"
 reset_fake "200${T}{\"ok\":true}"
 FAKE_TASKS_MODE=unsafe BRIEF_NOW_HM=1900 tp tasks --slot evening
 check "read-state tripwire → warning in the message" grep -q 'mark items as read' "$(lastmsg)"

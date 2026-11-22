@@ -428,6 +428,10 @@ cmd_run() {
 "
     [ "$TASKS_OUTLOOK" = fail ] && EXTRA_NOTES="${EXTRA_NOTES}Outlook could not be read (to-dos from Notion only)
 "
+    if [ "$TASKS_OUTLOOK" = ok ] && [ -n "$TASKS_SINCE" ] && { [ -z "$TASKS_OLDEST" ] || [[ "$TASKS_OLDEST" > "$TASKS_SINCE" ]]; }; then
+      EXTRA_NOTES="${EXTRA_NOTES}Outlook: only checked mail back to ${TASKS_OLDEST:-the newest rows} (the rest next run)
+"
+    fi
   fi
 
   render_prompt "$RUN_DIR" "$sections" "$chrome" "$today" || fail_run "could not build the prompt (see log)"
