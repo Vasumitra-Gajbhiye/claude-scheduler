@@ -1,0 +1,12 @@
+# Secrets and personal data: never commit
+config.env
+prompts/profile.md
+
+# Runtime data
+state/
+archive/
+logs/
+runs/
+
+# macOS
+.DS_Store

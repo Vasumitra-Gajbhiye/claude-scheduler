@@ -1,0 +1,91 @@
+#!/bin/bash
+# Morning Brief: daily Telegram digest via `claude -p` on a Claude Pro subscription.
+# Single CLI entry point. Run ./brief help for usage.
+
+# Billing safety: these would make Claude Code bill an API key / long-lived token instead of
+# the /login (keychain OAuth) Pro subscription, and a token also disables --chrome.
+unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN CLAUDE_CODE_OAUTH_TOKEN
+
+set -u
+set -o pipefail
+
+# Resolve the repo dir even if ./brief is invoked through a symlink.
+_src="${BASH_SOURCE[0]}"
+while [ -L "$_src" ]; do
+  _dir="$(cd "$(dirname "$_src")" && pwd)"
+  _src="$(readlink "$_src")"
+  case "$_src" in /*) ;; *) _src="$_dir/$_src" ;; esac
+done
+REPO_DIR="$(cd "$(dirname "$_src")" && pwd)"
+export REPO_DIR
+BRIEF_BIN="$REPO_DIR/brief"
+
+for _lib in common telegram state claude launchd doctor; do
+  # shellcheck disable=SC1090
+  [ -f "$REPO_DIR/lib/$_lib.sh" ] && . "$REPO_DIR/lib/$_lib.sh"
+done
+unset _lib _src _dir
+
+usage() {
+  cat <<EOF
+${C_BOLD}Morning Brief${C_OFF}: daily news/events/opportunities digest to Telegram via claude -p
+
+${C_BOLD}Usage:${C_OFF} ./brief <command> [options]
+
+${C_BOLD}Running${C_OFF}
+  run                      Full run now: research, send to Telegram, update state, archive.
+                           Ignores the "already sent today" guard.
+  run --dry-run            Research and print every section here; send nothing, save nothing.
+  run --only <section>     Just one section: india | tech | events | competitions | internships
+                           (combine with --dry-run for a cheap test)
+  run --scheduled          What launchd runs at the scheduled time: skips if today's brief was
+                           already delivered, and waits for Chrome first.
+  resend [YYYY-MM-DD]      Re-send an archived brief (default: the latest).
+
+${C_BOLD}Telegram${C_OFF}
+  chat-id                  Show the chat id(s) of people who messaged your bot.
+  test-telegram            Send "✅ Morning Brief bot is connected" to your chat.
+
+${C_BOLD}Schedule (Mac Mini)${C_OFF}
+  install                  Install/refresh the daily LaunchAgent at RUN_HOUR:RUN_MINUTE.
+  install --print          Only render + lint the plist and print it (installs nothing).
+  uninstall                Remove the LaunchAgent (pauses the daily brief).
+  kickstart                Run the real launchd job now (tests the launchd environment).
+
+${C_BOLD}Inspecting${C_OFF}
+  status                   Last run, result, duration, items, schedule state, next run.
+  logs [-f]                Show (or follow) the latest run log.
+  doctor                   Health check with a fix for every problem.
+  help                     This help.
+
+${C_BOLD}Examples${C_OFF}
+  ./brief run --dry-run --only tech      # cheapest end-to-end test, no Chrome needed
+  ./brief run --dry-run --only india     # tests the logged-in Hindu read via Chrome
+  ./brief run --dry-run                  # full research, printed here
+  ./brief run                            # real brief to Telegram
+  ./brief resend 2026-11-22
+  ./brief logs -f
+EOF
+}
+
+main() {
+  load_config
+  local cmd="${1:-help}"
+  [ $# -gt 0 ] && shift
+  case "$cmd" in
+    run)            cmd_run "$@" ;;
+    resend)         cmd_resend "$@" ;;
+    chat-id)        cmd_chat_id "$@" ;;
+    test-telegram)  cmd_test_telegram "$@" ;;
+    install)        cmd_install "$@" ;;
+    uninstall)      cmd_uninstall "$@" ;;
+    kickstart)      cmd_kickstart "$@" ;;
+    status)         cmd_status "$@" ;;
+    logs)           cmd_logs "$@" ;;
+    doctor)         cmd_doctor "$@" ;;
+    help|-h|--help) usage ;;
+    *) err "Unknown command: $cmd"; echo; usage; exit 2 ;;
+  esac
+}
+
+main "$@"
