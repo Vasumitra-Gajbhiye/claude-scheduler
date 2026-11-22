@@ -6,6 +6,8 @@ If something fails, skip it, record it in notes.txt, and carry on.
 # Today
 - Date: {{WEEKDAY}} {{TODAY_HUMAN}} ({{TODAY_ISO}}), timezone Asia/Kolkata (IST).
 - "Last 24 hours" means since roughly 06:00 IST yesterday.
+  - On a quiet day (e.g. a weekend), you may stretch to 72 hours to reach the minimum item count. Never include anything older.
+  - For anything older than 24 hours, add its date to the why-it-matters line, e.g. "(Fri 20 Nov)".
 - "Next 14 days" means {{TODAY_ISO}} to {{END_14D}} inclusive.
 
 # Your working directory
@@ -61,7 +63,15 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
 6. Quality over quantity.
    - Fewer strong items beat padding. If a section genuinely has nothing worth sending, write the file with just the heading and one line, "Nothing notable today.", and add NO rows for it to items.tsv.
    - Verify dates. Events must fall in the next 14 days. Deadlines must not be past.
-7. Budget. Be efficient: a handful of searches and fetches per section is plenty. Don't read the same page twice.
+7. Budget. Be efficient. Don't read the same page twice, and don't open every article. A listing's headline plus its summary is usually enough to write one line.
+
+# How to research a section
+- Start from the source pages listed in sources.md, read DIRECTLY: WebFetch the URL, or use Chrome where marked.
+  A site's own front page or news listing is the freshest view of the last 24 hours.
+- WebSearch's index often lags a day behind for very recent news. Searching for today's date is NOT a substitute for reading the listed pages.
+- Use WebSearch only to discover things (company-run competitions, newly announced internship programmes) or to fill gaps.
+- Work through most of the listed sources before choosing items. Pick the strongest items across them, not just the first site that answers.
+- If a source fails, try once more with the other method (WebFetch ↔ Chrome, where Chrome is enabled). Then move on.
 
 # Output files (exact names and formats)
 
@@ -134,8 +144,9 @@ https://link
 - An empty deadline still needs its tab, so the row has exactly 3 tabs.
 
 ## notes.txt
-- One line per source that failed, was blocked, or was skipped, with the reason. For example:
+- Only list listed sources that could not be read (blocked, error, paywall, Chrome unavailable), one short line each, under 100 characters. For example:
   "thehindu.com via Chrome: extension not connected, used WebFetch"
+- No commentary, no methodology notes, nothing about sources that worked.
 - Write an empty file if everything worked.
 
 # Finish
