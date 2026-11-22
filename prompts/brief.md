@@ -54,7 +54,7 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
    - Use WebSearch and WebFetch for everything, EXCEPT where sources.md says Chrome.
    - Browsing in Chrome is slow and expensive, so use it only where marked.
 5. Chrome (only when enabled for this run).
-   - Use tabs_context_mcp first, open NEW tabs with tabs_create_mcp, then navigate.
+   - Call tabs_context_mcp first with createIfEmpty: true (this creates your own tab group), then open NEW tabs with tabs_create_mcp and navigate.
    - Read with get_page_text (or read_page/find), not screenshots.
    - Close every tab you opened, with tabs_close_mcp, before you finish.
    - If a Chrome tool is blocked, denied, errors, or asks for permission, do not retry it more than once.

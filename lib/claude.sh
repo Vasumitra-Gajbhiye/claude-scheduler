@@ -166,7 +166,7 @@ cmd_chrome_check() {
   [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ] || die "claude not found"
   d="$RUNS_DIR/chrome-check-$(TZ=$BRIEF_TZ date '+%Y%m%d-%H%M%S')"; mkdir -p "$d"
   say "Asking claude to call the Claude in Chrome extension (one short turn on your plan)…"
-  out="$(cd "$d" && printf '%s\n' 'Call mcp__claude-in-chrome__tabs_context_mcp exactly once with createIfEmpty false. Do nothing else. If it returned tab information, reply with exactly: CONNECTED. Otherwise reply with: ERROR: followed by the exact error text.' |
+  out="$(cd "$d" && printf '%s\n' 'Call mcp__claude-in-chrome__tabs_context_mcp exactly once with createIfEmpty true. Do nothing else. If it returned tab or tab-group information, reply with exactly: CONNECTED. Otherwise reply with: ERROR: followed by the exact error text.' |
     "$CLAUDE_BIN" -p --model "$MODEL" --chrome --output-format json --permission-mode dontAsk --permission-prompts none \
       --strict-mcp-config --no-session-persistence --allowedTools "mcp__claude-in-chrome__tabs_context_mcp" 2>"$d/stderr")"
   printf '%s' "$out" >"$d/result.json"
