@@ -24,6 +24,8 @@ fail_run() {
 $tail_lines
 
 Log: $shown_log"
+  [ -n "$(retry_note)" ] && msg="$msg
+$(retry_note)"
   if [ "$DRY_RUN" = 1 ]; then
     say ""; say "${C_DIM}(dry run: this alert would be sent to Telegram)${C_OFF}"; say "$msg"
   elif [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
@@ -66,6 +68,69 @@ run_on_signal() {
   lock_release
   err "Interrupted."
   exit 130
+}
+
+# ------------------------------------------------------------------ scheduling gate / catch-up
+RUN_SCHEDULED=0
+ATTEMPT=0
+
+# Remember the last scheduler decision (shown by ./brief status). Cheap, no log file.
+record_check() { printf '%s\t%s\n' "$(now_human)" "$1" >"$STATE_DIR/last_check"; }
+
+# Number of scheduled attempts made today.
+attempts_today() {
+  local d n
+  [ -f "$STATE_DIR/attempts" ] || { echo 0; return; }
+  read -r d n <"$STATE_DIR/attempts" || { echo 0; return; }
+  if [ "$d" = "$1" ]; then echo "${n:-0}"; else echo 0; fi
+}
+attempt_bump() {
+  local n
+  n=$(( $(attempts_today "$1") + 1 ))
+  printf '%s %s\n' "$1" "$n" >"$STATE_DIR/attempts"
+  echo "$n"
+}
+
+# Is a brief due now? Due = past today's run time, not yet delivered today, attempts left.
+# Covers: missed 06:00 because the Mac was off/asleep/logged out (runs at login or wake),
+# and a failed run (retried every RETRY_MINUTES, up to MAX_DAILY_ATTEMPTS per day).
+scheduled_gate() {
+  local today="$1" now_hm run_hm n
+  now_hm="${BRIEF_NOW_HM:-$(TZ=$BRIEF_TZ date '+%H%M')}"   # BRIEF_NOW_HM: tests only
+  run_hm="$(printf '%02d%02d' "$((10#$RUN_HOUR))" "$((10#$RUN_MINUTE))")"
+  if [ "$(cat "$STATE_DIR/last_success" 2>/dev/null)" = "$today" ]; then
+    record_check "skip: today's brief already delivered"; return 1
+  fi
+  if [ "$((10#$now_hm))" -lt "$((10#$run_hm))" ]; then
+    record_check "skip: not due until $(printf '%02d:%02d' "$((10#$RUN_HOUR))" "$((10#$RUN_MINUTE))")"; return 1
+  fi
+  n="$(attempts_today "$today")"
+  if [ "$n" -ge "$MAX_DAILY_ATTEMPTS" ]; then
+    record_check "skip: $n failed attempts today (MAX_DAILY_ATTEMPTS=$MAX_DAILY_ATTEMPTS); run ./brief run manually"; return 1
+  fi
+  return 0
+}
+
+# After login/wake the network can take a moment. Wait up to 2 minutes for it.
+wait_for_network() {
+  [ "${BRIEF_SKIP_NETWORK_WAIT:-}" = 1 ] && return 0   # tests only
+  local i=0 code
+  while [ "$i" -lt 120 ]; do
+    code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 5 https://api.telegram.org 2>/dev/null)"
+    [ -n "$code" ] && [ "$code" != 000 ] && { [ "$i" -gt 0 ] && log "   network up after ${i}s"; return 0; }
+    sleep 5; i=$(( i + 5 ))
+  done
+  warn "Network still unreachable after 2 minutes; trying anyway."
+}
+
+# Extra line for failure alerts, saying whether an automatic retry will follow.
+retry_note() {
+  [ "$RUN_SCHEDULED" = 1 ] || return 0
+  if [ "$ATTEMPT" -lt "$MAX_DAILY_ATTEMPTS" ]; then
+    printf 'Will retry automatically in about %s min (attempt %s of %s today).' "$RETRY_MINUTES" "$ATTEMPT" "$MAX_DAILY_ATTEMPTS"
+  else
+    printf 'No more automatic retries today (%s attempts). Fix it, then run ./brief run.' "$MAX_DAILY_ATTEMPTS"
+  fi
 }
 
 # ------------------------------------------------------------------ chrome
@@ -217,27 +282,48 @@ cmd_run() {
   [ -n "$only" ] && RUN_MODE="$RUN_MODE only=$only"
 
   mkdir -p "$STATE_DIR" "$RUNS_DIR" "$LOGS_DIR" "$ARCHIVE_DIR"
-  start_log
-  RUN_START="$(epoch_now)"
   today="$(today_iso)"
-  log "☀️  Morning Brief: $(now_human): mode: $RUN_MODE"
-  log "   sections: $sections"
-  log "   log: $LOG_FILE"
+  RUN_SCHEDULED="$scheduled"
 
-  if [ "$scheduled" = 1 ] && [ -f "$STATE_DIR/force_next" ]; then
-    rm -f "$STATE_DIR/force_next"
-    log "   (kickstarted: ignoring the already-delivered guard once)"
-  elif [ "$scheduled" = 1 ] && [ "$(cat "$STATE_DIR/last_success" 2>/dev/null)" = "$today" ]; then
-    log "Today's brief ($today) was already delivered; nothing to do."
-    exit 0
+  # launchd calls `run --scheduled` at RUN_HOUR:RUN_MINUTE, at login (RunAtLoad), on wake after a
+  # missed time, and every RETRY_MINUTES. The gate decides whether a brief is actually due, and stays
+  # silent (no log file) when it isn't.
+  local forced=0
+  if [ "$scheduled" = 1 ]; then
+    if [ -f "$STATE_DIR/force_next" ]; then
+      rm -f "$STATE_DIR/force_next"; forced=1
+    elif ! scheduled_gate "$today"; then
+      exit 0
+    fi
   fi
 
   if ! lock_acquire; then
+    if [ "$scheduled" = 1 ]; then
+      record_check "skip: another run in progress (pid $LOCK_HOLDER)"
+      exit 0
+    fi
     err "Another run is already in progress (pid $LOCK_HOLDER). If that's wrong, remove $LOCK_DIR."
     exit 1
   fi
   trap run_on_exit EXIT
   trap run_on_signal INT TERM
+
+  [ "$scheduled" = 1 ] && ATTEMPT="$(attempt_bump "$today")"
+
+  start_log
+  RUN_START="$(epoch_now)"
+  log "☀️  Morning Brief: $(now_human): mode: $RUN_MODE"
+  log "   sections: $sections"
+  log "   log: $LOG_FILE"
+  if [ "$scheduled" = 1 ]; then
+    record_check "run: attempt $ATTEMPT/$MAX_DAILY_ATTEMPTS$([ "$forced" = 1 ] && echo ' (kickstart)')"
+    if [ "$forced" = 1 ]; then
+      log "   (kickstarted: ignoring the already-delivered guard once)"
+    else
+      log "   attempt $ATTEMPT of $MAX_DAILY_ATTEMPTS today (catch-up/retry is automatic)"
+    fi
+    wait_for_network
+  fi
 
   # ---- preflight (fail before spending any usage)
   [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ] || fail_run "claude binary not found (CLAUDE_BIN='$CLAUDE_BIN'). Install Claude Code or run ./brief install."
@@ -363,6 +449,8 @@ cmd_status() {
     say "  Last run:      never"
   fi
   say "  Last delivered: $(cat "$STATE_DIR/last_success" 2>/dev/null || echo never)"
+  [ -f "$STATE_DIR/last_check" ] && say "  Last check:    $(tr '\t' ' ' <"$STATE_DIR/last_check")"
+  say "  Attempts today: $(attempts_today "$(today_iso)") of $MAX_DAILY_ATTEMPTS (catch-up at login/wake, retry every ${RETRY_MINUTES} min)"
   [ -f "$STATE_DIR/last_failure" ] && say "  Last failure:  $(cut -f1,2 "$STATE_DIR/last_failure" | tr '\t' ' ')"
   if launchd_loaded; then
     say "  LaunchAgent:   ✅ loaded ($LABEL)"

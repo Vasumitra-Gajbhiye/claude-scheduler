@@ -12,8 +12,9 @@ It researches five sections:
 Then it sends them as plain-text Telegram messages, one per section, with a deterministic ⏰ Closing-soon reminder list. Only the first message buzzes your phone. It's one-way: the bot never reads your replies.
 
 ```
-launchd 06:00 ─▶ brief run --scheduled
-                   ├─ lock, prune memory, make sure Chrome + extension are up
+launchd 06:00, at login, on wake, every 30 min ─▶ brief run --scheduled
+                   ├─ due? (past 06:00, not delivered today, < 3 attempts today), else exit silently
+                   ├─ lock, wait for network, prune memory, make sure Chrome + extension are up
                    ├─ claude -p --model sonnet --chrome  (sandboxed, read-only, no shell)
                    │    writes 10-india.txt … 50-internships.txt, items.tsv, notes.txt
                    ├─ bash builds header, ⏰ Closing soon, "couldn't check" footer
@@ -62,7 +63,7 @@ Paths are resolved from the script's own location, so the repo can live anywhere
 | `./brief run` | Full run now: research, send to Telegram, update memory, archive. Ignores the "already sent today" guard. |
 | `./brief run --dry-run` | Full research, printed to the terminal. Sends nothing. Doesn't touch `seen.tsv` or `archive/`. |
 | `./brief run --only <section>` | One section only: `india`, `tech`, `events`, `competitions`, `internships`. Combine with `--dry-run`. |
-| `./brief run --scheduled` | What launchd runs. Skips if today's brief was already delivered (launchd replays missed jobs on wake). Starts Chrome and waits up to 60s for the extension. |
+| `./brief run --scheduled` | What launchd runs. Only runs if a brief is due: past `RUN_HOUR:RUN_MINUTE`, not yet delivered today, and fewer than `MAX_DAILY_ATTEMPTS` attempts today. Otherwise it exits silently. Waits for the network, starts Chrome and waits up to 60s for the extension. |
 | `./brief resend [YYYY-MM-DD]` | Re-send an archived brief (default: the latest). |
 | `./brief chat-id` | Lists the chat IDs that have messaged your bot (Telegram `getUpdates`). |
 | `./brief test-telegram` | Sends "✅ Morning Brief bot is connected". |
@@ -106,6 +107,21 @@ Examples:
 | `CLAUDE_BIN` | (filled by `install`) | Absolute path to `claude` on this machine |
 | `CLOSING_SOON_DAYS` | `3` | Window for ⏰ Closing soon |
 | `SEEN_RETENTION_DAYS` | `120` | How long sent items are remembered, unless their deadline is still ahead |
+| `MAX_DAILY_ATTEMPTS` | `3` | Automatic attempts per day (catch-up plus retries after failures) |
+| `RETRY_MINUTES` | `30` | How often launchd re-checks whether a brief is due. Rerun `./brief install` after changing it. |
+
+### Missed or failed runs (catch-up)
+
+The LaunchAgent checks at 06:00, whenever you log in, when the Mac wakes, and every `RETRY_MINUTES`. Each check runs a brief only if one is **due**:
+- it's past 06:00;
+- today's brief hasn't been delivered yet;
+- there have been fewer than `MAX_DAILY_ATTEMPTS` attempts today.
+
+So:
+- **Mac off, logged out or asleep at 06:00** (power cut, restart, FileVault password screen): the brief runs as soon as you log in or the Mac wakes. It waits up to 2 minutes for the network and 60s for Chrome first.
+- **Logging in before 06:00** does nothing early. The 06:00 run happens as normal.
+- **A run fails** (Chrome not ready, network, usage limit…): you get the ⚠️ alert, which says "Will retry automatically in about 30 min (attempt 1 of 3 today)". After 3 failed attempts it stops for the day and the alert says so. Fix the problem and run `./brief run`.
+- **Never twice a day:** once delivered, every later check that day exits silently. Checks that find nothing due write no log file. `./brief status` shows the last decision ("Last check") and today's attempt count.
 
 ---
 
@@ -185,16 +201,20 @@ The MacBook is for building and testing. The schedule lives on the Mac Mini.
   - In the Claude extension's settings (site permissions), allow thehindu.com, luma.com, lu.ma, unstop.com and devfolio.co. Unattended runs can't click "allow".
   - Then `./brief run --dry-run --only india` and `--only events`. If `notes.txt` mentions a permission prompt, the site still isn't allowed.
 - **Stay awake and logged in:**
-  - Automatic login (requires FileVault off).
+  - Keep FileVault **on** and automatic login **off**. The Mac then always needs your password at startup.
   - Energy settings that prevent sleep.
   - `sudo pmset repeat wakeorpoweron MTWRFSU 05:55:00`.
   - Chrome in Login Items.
+  - Stay logged in. Lock the screen (Ctrl-⌘-Q) instead of logging out. The 06:00 run works while the screen is locked.
 - **Schedule:**
   - `./brief install`, then `./brief kickstart`, then `./brief logs -f`.
   - Click **Always Allow** if the keychain asks about `claude`.
 - **Check:** `./brief doctor` → all green.
 
-**FileVault trade-off.** macOS only allows automatic login with FileVault off. With FileVault on, the Mac Mini waits at the FileVault unlock screen after any reboot or power cut, so nothing runs until someone types the password. A LaunchAgent needs a logged-in user to reach the keychain and Chrome. FileVault off means a stolen Mac Mini's disk is readable. Choose based on where it lives. If you keep FileVault on, just log in after each reboot.
+**FileVault on (recommended here).**
+- FileVault encrypts the whole disk and asks for your password at every startup. Nobody can use the Mac or read its disk without it.
+- The cost: after a power cut or restart, nothing runs until you log in. The [catch-up](#missed-or-failed-runs-catch-up) then sends that day's brief as soon as you do.
+- The only setup that needs no human after a restart is FileVault off plus automatic login, which leaves the disk readable to anyone who takes the Mac.
 
 ---
 
@@ -229,8 +249,9 @@ Start with `./brief doctor`, then `./brief logs`. Every failure also arrives on 
 **launchd never fires**
 - `./brief status` should say "LaunchAgent: ✅ loaded".
 - Check `logs/launchd.err.log`. `launchctl print gui/$(id -u)/com.morningbrief.daily` shows the job's state and last exit code.
-- The Mac must be awake and logged in at the run time (auto-login, energy settings, the `pmset repeat` wake).
-- Missed runs fire on wake. `--scheduled` makes sure that's never a double send.
+- The Mac must be logged in (screen locked is fine) and awake at the run time: energy settings plus the `pmset repeat` wake.
+- If it wasn't, the brief catches up at your next login or wake. `./brief status` → "Last check" shows what the scheduler last decided and why.
+- "skip: 3 failed attempts today" means automatic retries are used up for the day. Run `./brief logs`, fix the problem, then `./brief run`.
 - After moving the repo or changing the time, rerun `./brief install`.
 
 **Telegram 401 Unauthorized:** the bot token is wrong or was revoked. Copy it again from @BotFather (`/token`) into `config.env`.

@@ -136,13 +136,11 @@ EOF
   fv="$(fdesetup status 2>/dev/null)"
   fvn=""; case "$fv" in *On*) fvn=" (FileVault is on)" ;; esac
   al="$(defaults read /Library/Preferences/com.apple.loginwindow autoLoginUser 2>/dev/null || true)"
-  if [ -n "$al" ]; then
-    d_ok "Automatic login enabled ($al)"
-  elif [ "$mini" = 1 ]; then
-    d_warn "Automatic login is off$fvn" "After a power cut the Mac Mini stays at the login screen and the brief won't run. See README → Mac Mini setup"
-  else
-    d_info "Mac Mini only: automatic login is off here$fvn"
-  fi
+  case "$fv" in
+    *On*) d_ok "FileVault on, password needed at startup. A brief missed while the Mac was off runs as soon as you log in." ;;
+    *)    if [ -n "$al" ]; then d_ok "Automatic login enabled ($al)"
+          else d_info "FileVault off, no automatic login. A missed brief runs as soon as you log in."; fi ;;
+  esac
 
   # 10-11. disk + last run
   d_head "Health"
