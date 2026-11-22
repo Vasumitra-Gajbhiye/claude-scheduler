@@ -163,6 +163,28 @@ EOF
   fi
   if [ -d "$LOCK_DIR" ]; then d_warn "A run lock exists ($LOCK_DIR)" "If no run is active, it is cleared automatically once stale, or rm -rf it"; fi
 
+  # 12. to-dos & exams (Outlook → Notion)
+  d_head "To-dos & exams (Outlook → Notion)"
+  if [ "${TASKS_ENABLED:-0}" != 1 ]; then
+    d_info "Off (TASKS_ENABLED=0 in config.env)"
+  elif [ -z "${NOTION_TASKS_DS:-}" ] || [ -z "${NOTION_EXAMS_DS:-}" ]; then
+    d_bad "NOTION_TASKS_DS / NOTION_EXAMS_DS not set" "Put the collection:// ids of the Tasks and Exams data sources in config.env (see README)"
+  else
+    d_ok "Notion data sources set; evening check from $(printf '%02d:00' "$((10#${TASKS_EVENING_HOUR:-19}))")"
+    if [ -x "$REPO_DIR/lib/hooks/guard.sh" ]; then d_ok "Guard hook is executable"
+    else d_bad "lib/hooks/guard.sh is not executable" "chmod +x lib/hooks/guard.sh"; fi
+    [ -n "$(chrome_device_id)" ] || d_bad "This Mac's Chrome isn't identified, so Outlook can't be read" "./brief chrome-check"
+    if [ -f "$TASKS_STATUS_FILE" ]; then
+      case "$(tasks_status_get readstate)" in
+        unsafe) d_bad "Last sync: Outlook marked a message as read when it was opened" "Outlook → Settings → Mail → Message handling → \"Don't automatically mark items as read\"" ;;
+        *) d_ok "Last sync $(tasks_status_get time): Outlook $(tasks_status_get outlook), read state ok" ;;
+      esac
+      [ "$(tasks_status_get outlook)" = fail ] && d_warn "Last sync couldn't read Outlook" "Is Outlook signed in in this Mac's Chrome? Try ./brief tasks --dry-run"
+    else
+      d_info "No to-do sync yet. Try: ./brief tasks --dry-run"
+    fi
+  fi
+
   say ""
   if [ "$D_FAIL" = 0 ]; then
     say "${C_GRN}${C_BOLD}All checks passed${C_OFF}$([ "$D_WARN" -gt 0 ] && echo " ($D_WARN warning(s))")."

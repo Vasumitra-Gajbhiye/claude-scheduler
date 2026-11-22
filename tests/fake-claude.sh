@@ -7,6 +7,27 @@ printf '%s\n' "$@" >fake-args.txt
 env | grep -E '^(ANTHROPIC_API_KEY|ANTHROPIC_AUTH_TOKEN|CLAUDE_CODE_OAUTH_TOKEN)=' >fake-env.txt
 printf '%s' "$prompt" >fake-prompt.txt
 mode="${FAKE_CLAUDE_MODE:-ok}"
+# The to-do (tasks) run: FAKE_TASKS_MODE ok (default) | unsafe | nonotion | error
+if printf '%s' "$prompt" | grep -q 'You are the to-do step'; then
+  tm="${FAKE_TASKS_MODE:-ok}"
+  [ "$tm" = error ] && { echo '{"type":"result","subtype":"error_during_execution","is_error":true,"num_turns":2,"result":"tasks broke","permission_denials":[]}'; exit 1; }
+  t0="$(TZ=Asia/Kolkata date +%F)"; t1="$(TZ=Asia/Kolkata date -v+1d +%F)"; t9="$(TZ=Asia/Kolkata date -v+9d +%F)"; t3="$(TZ=Asia/Kolkata date -v+3d +%F)"
+  {
+    printf 'task\t11111111222233334444555555555555\tApply: Sunday outing\t%sT23:30\tOuting\tbot\thttps://forms.office.com/r/abc\t\n' "$t0"
+    printf 'task\t2222222222223333444455555555555a\tSubmit: Mid-term feedback\t%s\tTo-do\tbot\t\t\n' "$t1"
+    printf 'task\t33333333-2222-3333-4444-555555555555\tRead chapter 4\t%s\t\tme\t\t\n' "$t9"
+    printf 'exam\t4444444422223333444455555555555b\tProb Mid-sem\t%sT10:00\tMid-sem\tbot\t\tR-101 · Ch 1-5\n' "$t3"
+    printf 'bogus\tnope\n'
+  } >tasks.tsv
+  printf 'created\ttask\t2222222222223333444455555555555a\tSubmit: Mid-term feedback\t%s\tk1\n' "$t1" >actions.tsv
+  printf '%s|Course Office|Mid-term feedback form\ttask\tyes\tfeedback form\tCourse Office\n%s|IT|Maintenance\tignore\tno\tIT notice\tITHelpdesk\n' "$t0" "$t0" >mail.tsv
+  rs=ok; [ "$tm" = unsafe ] && rs=unsafe
+  nt=ok; [ "$tm" = nonotion ] && nt=fail
+  printf 'outlook=ok\nreadstate=%s\nnotion=%s\nouting_week=yes\n' "$rs" "$nt" >status.txt
+  : >notes.txt
+  echo '{"type":"result","subtype":"success","is_error":false,"num_turns":9,"duration_ms":30000,"total_cost_usd":0.2,"result":"1 created, 3 open, 1 exam","permission_denials":[]}'
+  exit 0
+fi
 case "$mode" in
   sleep) sleep 300; exit 0 ;;
   usage) echo '{"type":"result","subtype":"success","is_error":true,"num_turns":1,"duration_ms":900,"total_cost_usd":0.01,"result":"Claude usage limit reached. Your limit will reset at 11am.","permission_denials":[]}'; exit 1 ;;

@@ -20,7 +20,7 @@ REPO_DIR="$(cd "$(dirname "$_src")" && pwd)"
 export REPO_DIR
 BRIEF_BIN="$REPO_DIR/brief"
 
-for _lib in common telegram state sources claude chrome run launchd doctor; do
+for _lib in common telegram state sources claude chrome tasks run launchd doctor; do
   # shellcheck disable=SC1090
   [ -f "$REPO_DIR/lib/$_lib.sh" ] && . "$REPO_DIR/lib/$_lib.sh"
 done
@@ -41,6 +41,13 @@ ${C_BOLD}Running${C_OFF}
   run --scheduled          What launchd runs at the scheduled time: skips if today's brief was
                            already delivered, and waits for Chrome first.
   resend [YYYY-MM-DD]      Re-send an archived brief (default: the latest).
+
+${C_BOLD}To-dos & exams (Outlook → Notion)${C_OFF}
+  tasks                    Read Outlook (read-only), update the Notion Tasks/Exams databases, and
+                           send what needs doing. Morning: part of the brief. Evening: own message.
+  tasks --dry-run          Same, but change nothing in Notion and send nothing; print the result.
+  tasks --slot <s>         morning | evening (default: by time of day)
+  tasks --status           Last sync, open tasks and exams, read-state check.
 
 ${C_BOLD}Telegram${C_OFF}
   chat-id                  Show the chat id(s) of people who messaged your bot.
@@ -88,6 +95,7 @@ main() {
     doctor)         cmd_doctor "$@" ;;
     chrome-check)   cmd_chrome_check "$@" ;;
     sources)        cmd_sources "$@" ;;
+    tasks)          cmd_tasks "$@" ;;
     help|-h|--help) usage ;;
     *) err "Unknown command: $cmd"; echo; usage; exit 2 ;;
   esac
