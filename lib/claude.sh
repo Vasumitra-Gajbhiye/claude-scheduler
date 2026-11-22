@@ -4,8 +4,11 @@
 # Read-only Claude in Chrome tools. Everything else from that server (computer, form_input,
 # file_upload, javascript_tool, browser_batch, ...) is left unallowed and therefore auto-denied
 # under dontAsk, and the ones that can act on a page are explicitly disallowed too.
-CHROME_READ_TOOLS="mcp__claude-in-chrome__tabs_context_mcp mcp__claude-in-chrome__tabs_create_mcp mcp__claude-in-chrome__tabs_close_mcp mcp__claude-in-chrome__navigate mcp__claude-in-chrome__get_page_text mcp__claude-in-chrome__read_page mcp__claude-in-chrome__find"
-CHROME_DENY_TOOLS="mcp__claude-in-chrome__computer mcp__claude-in-chrome__form_input mcp__claude-in-chrome__file_upload mcp__claude-in-chrome__upload_image mcp__claude-in-chrome__javascript_tool mcp__claude-in-chrome__browser_batch mcp__claude-in-chrome__gif_creator"
+# list_connected_browsers + select_browser let the run pin itself to THIS Mac's Chrome: every Chrome
+# signed in to the same claude.ai account is reachable, so without pinning a run on the Mac Mini
+# could drive the MacBook's browser. switch_browser (broadcast pairing request) is denied.
+CHROME_READ_TOOLS="mcp__claude-in-chrome__list_connected_browsers mcp__claude-in-chrome__select_browser mcp__claude-in-chrome__tabs_context_mcp mcp__claude-in-chrome__tabs_create_mcp mcp__claude-in-chrome__tabs_close_mcp mcp__claude-in-chrome__navigate mcp__claude-in-chrome__get_page_text mcp__claude-in-chrome__read_page mcp__claude-in-chrome__find"
+CHROME_DENY_TOOLS="mcp__claude-in-chrome__computer mcp__claude-in-chrome__form_input mcp__claude-in-chrome__file_upload mcp__claude-in-chrome__upload_image mcp__claude-in-chrome__javascript_tool mcp__claude-in-chrome__browser_batch mcp__claude-in-chrome__gif_creator mcp__claude-in-chrome__switch_browser"
 
 CLAUDE_PGID=""
 
@@ -166,14 +169,30 @@ cmd_chrome_check() {
   [ -n "$CLAUDE_BIN" ] && [ -x "$CLAUDE_BIN" ] || die "claude not found"
   d="$RUNS_DIR/chrome-check-$(TZ=$BRIEF_TZ date '+%Y%m%d-%H%M%S')"; mkdir -p "$d"
   say "Asking claude to call the Claude in Chrome extension (one short turn on your plan)…"
-  out="$(cd "$d" && printf '%s\n' 'Call mcp__claude-in-chrome__tabs_context_mcp exactly once with createIfEmpty true. Do nothing else. If it returned tab or tab-group information, reply with exactly: CONNECTED. Otherwise reply with: ERROR: followed by the exact error text.' |
+  out="$(cd "$d" && printf '%s\n' 'Follow these steps exactly and call no other tools.
+1. Call mcp__claude-in-chrome__list_connected_browsers.
+2. If no browser in the list has "isLocal": true, reply with exactly: NOLOCAL followed by the list as compact JSON. Stop.
+3. Call mcp__claude-in-chrome__select_browser with the deviceId of the entry that has "isLocal": true.
+4. Call mcp__claude-in-chrome__tabs_context_mcp with createIfEmpty true.
+5. If steps 3 and 4 succeeded, reply with exactly one line: CONNECTED name=<that browser name> others=<number of non-local browsers in the list>
+   Otherwise reply with: ERROR: followed by the exact error text.' |
     "$CLAUDE_BIN" -p --model "$MODEL" --chrome --output-format json --permission-mode dontAsk --permission-prompts none \
-      --strict-mcp-config --no-session-persistence --allowedTools "mcp__claude-in-chrome__tabs_context_mcp" 2>"$d/stderr")"
+      --strict-mcp-config --no-session-persistence \
+      --allowedTools "mcp__claude-in-chrome__list_connected_browsers,mcp__claude-in-chrome__select_browser,mcp__claude-in-chrome__tabs_context_mcp" \
+      --disallowedTools "mcp__claude-in-chrome__switch_browser" 2>"$d/stderr")"
   printf '%s' "$out" >"$d/result.json"
   res="$(claude_result_fields "$d/result.json" | sed -n 's/^result=//p')"
   den="$(claude_result_fields "$d/result.json" | sed -n 's/^permission_denials=//p')"
   case "$res" in
-    *CONNECTED*) say "${C_GRN}✅ Claude in Chrome is connected and usable from claude -p.${C_OFF}" ;;
+    *NOLOCAL*)
+      say "${C_RED}❌ This Mac's Chrome is not connected${C_OFF} (only other computers' browsers are: $(printf '%s' "$res" | sed 's/^NOLOCAL *//' | cut -c1-300))"
+      say "   → On THIS Mac: open Chrome, sign the Claude extension in to the same account as Claude Code,"
+      say "     quit Chrome (⌘Q) and reopen it, run: claude --chrome  →  /chrome, then ./brief chrome-check again."
+      say "   Runs will never use another computer's browser. Until this is fixed, Chrome sections fall back to WebFetch."
+      return 1 ;;
+    *CONNECTED*)
+      say "${C_GRN}✅ This Mac's Chrome is connected and usable from claude -p${C_OFF} ($(printf '%s' "$res" | sed -n 's/.*CONNECTED *//p'))."
+      case "$res" in *"others=0"*) ;; *) say "   Other computers' browsers are also connected to your account. Runs here always pick this Mac's browser." ;; esac ;;
     *"not connected"*)
       say "${C_RED}❌ Browser extension is not connected.${C_OFF}"
       say "   → In Chrome: open the Claude extension and sign in with the SAME claude.ai account/org as Claude Code"
