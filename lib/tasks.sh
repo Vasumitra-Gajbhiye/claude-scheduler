@@ -177,7 +177,7 @@ tasks_sync() {
     cp "$run_dir/tasks.clean.tsv" "$TASKS_SNAPSHOT"
     now_human >"$TASKS_SNAPSHOT_AT"
     if [ -s "$run_dir/mail.tsv" ]; then
-      tr -d '\r' <"$run_dir/mail.tsv" | awk -F'\t' -v OFS='\t' -v d="$today" '$1 != "" && $2 != "error" { print d, $1, $2 }' >>"$TASKS_MAIL_SEEN"
+      tr -d '\r' <"$run_dir/mail.tsv" | awk -F'\t' -v OFS='\t' -v d="$today" '$1 != "" && $2 != "error" && $2 != "skipped" { print d, $1, $2 }' >>"$TASKS_MAIL_SEEN"
     fi
     if [ -s "$run_dir/actions.tsv" ]; then
       tr -d '\r' <"$run_dir/actions.tsv" | awk -F'\t' -v OFS='\t' -v d="$today" '$1 == "created" && $3 != "" { gsub(/-/, "", $3); print tolower($3), d, $2, $4, $5 }' >>"$TASKS_NEW"

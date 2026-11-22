@@ -20,7 +20,7 @@ if printf '%s' "$prompt" | grep -q 'You are the to-do step'; then
     printf 'bogus\tnope\n'
   } >tasks.tsv
   printf 'created\ttask\t2222222222223333444455555555555a\tSubmit: Mid-term feedback\t%s\tk1\n' "$t1" >actions.tsv
-  printf '%s|Course Office|Mid-term feedback form\ttask\tyes\tfeedback form\tCourse Office\n%s|IT|Maintenance\tignore\tno\tIT notice\tITHelpdesk\n' "$t0" "$t0" >mail.tsv
+  printf '%s|Course Office|Mid-term feedback form\ttask\tyes\tfeedback form\tCourse Office\n%s|IT|Maintenance\tignore\tno\tIT notice\tITHelpdesk\n%s|Course Office|Consent form\tskipped\tno\tpane did not load\tCourse Office\n' "$t0" "$t0" "$t0" >mail.tsv
   rs=ok; [ "$tm" = unsafe ] && rs=unsafe
   nt=ok; [ "$tm" = nonotion ] && nt=fail
   printf 'outlook=ok\nreadstate=%s\nnotion=%s\nouting_week=yes\n' "$rs" "$nt" >status.txt

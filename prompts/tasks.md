@@ -58,6 +58,7 @@ Never ask questions, never wait for input, never stop to request permission. If 
 - Mail key for each row = "<received date>|<sender as shown>|<subject as shown>".
 - {{PROCESSED_PATH}} lists mail keys handled on earlier runs, one per line in its first column.
   - Skip those rows completely: don't open them and don't list them again.
+  - Match loosely: a row counts as handled if a processed key has the same sender and the same subject (ignore the date part, and treat a subject cut off with "…" or "..." as matching the full one). When you write a key for a row that matches an earlier one, reuse that exact earlier key.
 
 # Step 2: decide what's worth opening
 Use the sender, subject and preview.
@@ -67,18 +68,26 @@ Use the sender, subject and preview.
   - IT maintenance notices;
   - hostel gate pass emails (out of scope for now);
   - session or booking notifications from personal services.
-- If the list row alone gives everything needed (what, deadline), you may decide without opening it.
+- OPEN every row that might need action, even if you're unsure.
+  - Examples: forms, consent, applications, "input needed", surveys with a deadline, regrading, club or programme applications, workshops that need a sign-up, anything from the course or programme office about academics.
+  - Decide from the list alone ONLY for obvious noise (the list above), or when the row already shows both what to do and the deadline.
+- Never mark a row "ignore" because you couldn't read it. If you couldn't open or read it, use decision "skipped". It will be looked at again on the next run.
+- Open at most 20 messages per run, the newest first. Mark the rest "skipped".
 
 # Reading a message (read-state tripwire)
 For each row you need to open:
 1. Note whether its label says "Unread".
 2. left_click it by its ref (from the latest read_page).
-3. get_page_text on the tab to read the reading pane.
-4. IMMEDIATELY call read_page with filter "interactive" again. The guard requires this before the next click.
-5. Find the same row again (same sender and subject).
+3. Wait for the reading pane to load: computer action "wait", duration 1.
+4. Call get_page_text on the tab to read the reading pane.
+   - Check that the text is the message you clicked (same subject). If it still shows the previous message, wait 2 seconds and read again, once.
+   - If it's still wrong, use decision "skipped".
+5. Links: get_page_text drops link targets. When the message has a form, submission or sign-up link, call find with "links in the message body of the reading pane" (or read_page on the "Reading Pane" region) to get the actual href. Copy it exactly.
+6. IMMEDIATELY call read_page with filter "interactive" again. The guard requires this before the next click.
+7. Find the same row again (same sender and subject).
    - If it said "Unread" before and no longer does, the mailbox is marking mail as read.
-   - Write `readstate=unsafe` in status.txt, open NO more messages, and decide the rest from list rows only.
-6. If a click is blocked by the guard, don't retry it. Decide that row from the list only.
+   - Write `readstate=unsafe` in status.txt, open NO more messages, and mark every unopened row that might be actionable as "skipped".
+8. If a click is blocked by the guard, don't retry it. Use decision "skipped" for that row.
 
 # Step 3: what to create
 For each actionable email, check Notion for an existing row with the same Bot key (the mail key) before creating anything. Never create duplicates. Also check for an existing row that is clearly the same thing, e.g. the same exam announced twice, and treat it as existing.
@@ -136,7 +145,7 @@ Also check whether any Tasks row with Type "Outing" (done or not) has a Date in 
   6. mail key
 - mail.tsv: one row per inbox row you considered (not the skipped ones), 5 fields:
   1. mail key
-  2. decision: task, exam, outing, confirm, event, update, ignore or error
+  2. decision: task, exam, outing, confirm, event, update, ignore, skipped or error ("skipped" and "error" rows are looked at again next run)
   3. opened: yes or no
   4. short note (≤ 80 characters)
   5. sender

@@ -28,6 +28,8 @@ check "click on an option outside the message list → blocked" blocked "{\"tool
 check "click by coordinates → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"left_click\",\"ref\":\"ref_300\",\"coordinate\":[10,10]}}"
 check "typing → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"type\",\"text\":\"hello\"}}"
 check "key press → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"key\",\"text\":\"cmd+Enter\"}}"
+check "a short wait → allowed" allowed "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"wait\",\"duration\":1}}"
+check "a long wait → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"wait\",\"duration\":60}}"
 check "scrolling the list → allowed" allowed "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"scroll\",\"coordinate\":[400,400],\"scroll_direction\":\"down\"}}"
 check "click on a message row from the list → allowed" allowed "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"left_click\",\"ref\":\"ref_300\"}}"
 check "next click before re-reading the list → blocked" blocked "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":1,\"action\":\"left_click\",\"ref\":\"ref_398\"}}"
@@ -158,7 +160,7 @@ BRIEF_NOW_HM=1900 tp tasks --slot evening; rc=$?
 check "tasks (evening) delivers" bash -c "[ $rc = 0 ] && [ \$(grep -c '^CALL' '$FAKE_CALLS') = 1 ]"
 check "…saves the snapshot (bad rows dropped, ids normalised)" bash -c "[ \$(wc -l <'$PT/state/tasks_snapshot.tsv') = 4 ] && grep -q '33333333222233334444555555555555' '$PT/state/tasks_snapshot.tsv'"
 check "…remembers the rows the bot created" grep -qx 2222222222223333444455555555555a "$PT/state/notion_bot_pages.txt"
-check "…remembers processed mail" bash -c "[ \$(wc -l <'$PT/state/mail_seen.tsv') = 2 ]"
+check "…remembers processed mail, but not skipped rows" bash -c "[ \$(wc -l <'$PT/state/mail_seen.tsv') = 2 ] && ! grep -q 'Consent form' '$PT/state/mail_seen.tsv'"
 check "…marks the evening check done" [ "$(cat "$PT/state/tasks_last_evening")" = "$TODAY" ]
 lastmsg() { printf '%s/message.txt' "$(ls -d "$PT"/runs/*-tasks-evening | tail -1)"; }
 check "…message mentions the task added today" grep -q 'ADDED FROM EMAIL TODAY' "$(lastmsg)"

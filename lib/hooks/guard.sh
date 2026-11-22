@@ -123,6 +123,8 @@ if ($tool eq "${C}navigate") {
 
 if ($tool eq "${C}computer") {
   my $a = $ti->{action} // "";
+  # Waiting a moment for the reading pane to load changes nothing.
+  if ($a eq "wait") { block("wait at most 5 seconds") unless ($ti->{duration} // 0) <= 5; allow() }
   # Scrolling the message list (Outlook only renders the visible rows) changes nothing.
   if ($a eq "scroll") {
     block("scroll needs a direction up/down") unless ($ti->{scroll_direction} // "") =~ /^(up|down)$/;
