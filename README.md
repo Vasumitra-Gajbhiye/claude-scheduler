@@ -238,9 +238,16 @@ Start with `./brief doctor`, then `./brief logs`. Every failure also arrives on 
 
 **Chrome opened on a different computer (e.g. the MacBook) during a Mac Mini run**
 - Every Chrome signed in to your claude.ai account is reachable from Claude Code, wherever it is.
-- Each run therefore lists the connected browsers and pins itself to the one on *this* machine (`isLocal`).
-- If this machine's Chrome isn't connected, the run doesn't use Chrome at all. The Chrome sections fall back, and the footer says "Chrome: no local browser connected".
-- Fix that on the Mac in question: Chrome running, Claude extension signed in to the same account, quit and reopen Chrome. Then `./brief chrome-check` must say "✅ This Mac's Chrome is connected".
+- The extension's `isLocal` flag is not reliable: with two Macs connected, both can show as local.
+- `./brief chrome-check` identifies this Mac's browser for certain:
+  - it opens a tagged example.com tab in every connected browser;
+  - it asks the local Chrome, through AppleScript, which tag it has;
+  - it saves that device ID in `state/chrome_device` (per machine, not in git);
+  - it closes the test tabs.
+- Runs then select exactly that device. If it isn't connected, the run doesn't use Chrome at all and the footer says "Chrome: this Mac's browser not connected".
+- Run `./brief chrome-check` once on each Mac, and again after reinstalling Chrome or the extension.
+- macOS asks once whether your terminal may control Google Chrome. Allow it. It can be changed later under System Settings → Privacy & Security → Automation.
+- If that's not possible, find the example.com tab on this Mac, copy the ID after `?morningbrief-probe=`, and run `./brief chrome-check --use <deviceId>`.
 
 **Chrome asks for permission / sites blocked**
 - Unattended runs deny anything that would prompt.

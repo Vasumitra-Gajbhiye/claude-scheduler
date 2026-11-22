@@ -77,7 +77,12 @@ check "contains the run dir and section paths" grep -q -- "- tech → $TMP/run1/
 check "contains profile.md content" grep -q "Who this brief is for" "$TMP/run1/prompt.md"
 check "contains sources.md content" grep -q "news.ycombinator.com" "$TMP/run1/prompt.md"
 check "contains today's date" grep -q "($TODAY)" "$TMP/run1/prompt.md"
-check "Chrome enabled note" grep -q "Claude in Chrome is ENABLED" "$TMP/run1/prompt.md"
+check "Chrome not identified yet → prompt forbids Chrome tools" grep -q "has not been identified yet, so do NOT use any Claude in Chrome tool" "$TMP/run1/prompt.md"
+chrome_save_device "11111111-2222-3333-4444-555555555555" "Test Browser"
+render_prompt "$TMP/run1" "tech india" 1 "$TODAY"
+check "Chrome identified → prompt pins select_browser to that deviceId" grep -q "call select_browser with deviceId 11111111-2222-3333-4444-555555555555" "$TMP/run1/prompt.md"
+check "…and forbids other browsers" grep -q "Never select any other deviceId" "$TMP/run1/prompt.md"
+rm -f "$CHROME_DEVICE_FILE"
 render_prompt "$TMP/run1" "tech" 0 "$TODAY"
 check "Chrome disabled note for tech-only" grep -q "Claude in Chrome is NOT available" "$TMP/run1/prompt.md"
 check "sections_need_chrome: tech → no" bash -c '. "$REPO_DIR/lib/claude.sh"; ! sections_need_chrome tech'
