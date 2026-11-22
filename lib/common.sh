@@ -68,7 +68,7 @@ load_config() {
   # Defaults first, then the file overrides.
   TELEGRAM_BOT_TOKEN=""; TELEGRAM_CHAT_ID=""
   MODEL="sonnet"; RUN_HOUR=6; RUN_MINUTE=0; MAX_SECONDS=2400
-  CLAUDE_BIN=""; CLOSING_SOON_DAYS=3; SEEN_RETENTION_DAYS=120
+  CLAUDE_BIN=""; SEEN_RETENTION_DAYS=120
   MAX_DAILY_ATTEMPTS=3; RETRY_MINUTES=30
   if [ -f "$CONFIG_FILE" ]; then
     # shellcheck disable=SC1090
@@ -127,27 +127,20 @@ is_mac_mini() {
 }
 
 # Section ids in output order, plus file names and headings (bash 3.2: no assoc arrays).
-ALL_SECTIONS="day india world tech events competitions internships"
+ALL_SECTIONS="day india world tech events internships"
 section_file() {
   case "$1" in
     day) echo "05-day.txt" ;; india) echo "10-india.txt" ;; world) echo "15-world.txt" ;;
     tech) echo "20-tech.txt" ;; events) echo "30-events.txt" ;;
-    competitions) echo "40-competitions.txt" ;; internships) echo "50-internships.txt" ;;
+    internships) echo "50-internships.txt" ;;
     *) return 1 ;;
   esac
 }
 section_label() {
   case "$1" in
     day) echo "Today" ;; india) echo "India" ;; world) echo "World" ;;
-    tech) echo "Tech & AI" ;; events) echo "Bangalore events" ;;
-    competitions) echo "Competitions" ;; internships) echo "Internships" ;;
-  esac
-}
-section_type() {
-  case "$1" in
-    day) echo "day" ;; india) echo "news" ;; world) echo "world" ;;
-    tech) echo "tech" ;; events) echo "event" ;;
-    competitions) echo "competition" ;; internships) echo "internship" ;;
+    tech) echo "Tech & AI" ;; events) echo "Events & Competitions" ;;
+    internships) echo "Internships" ;;
   esac
 }
 valid_section() { section_file "$1" >/dev/null 2>&1; }

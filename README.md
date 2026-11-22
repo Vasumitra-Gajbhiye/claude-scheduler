@@ -2,18 +2,17 @@
 
 A daily Telegram digest written by Claude Code running headless (`claude -p`) on a **Claude Pro subscription**. It runs every morning at 06:00 IST on an always-on Mac Mini.
 
-It researches seven sections:
+It researches six sections:
 - 📆 Today: what today is known for (national/international days, anniversaries, festivals)
 - 🇮🇳 India: the top 5 stories, from The Hindu read in your logged-in Chrome
 - 🌍 World: the top 3 global stories
 - 💻 Tech & AI: the top 3 stories
-- 📅 Bangalore events (Luma, in Chrome)
-- 🏆 Competitions
+- 📅 Events & Competitions: events, meetups, hackathons and contests up to 90 days ahead; online any day, offline only in Bangalore on Fri–Sun
 - 💼 Internships: only ones paying ₹50,000/month or more (or well-known big-firm programmes that pay above that)
 
 The counts, sources and rules per section live in `prompts/sources.md`; edit them freely.
 
-Then it sends them as plain-text Telegram messages, one per section, with a deterministic ⏰ Closing-soon reminder list. Only the first message buzzes your phone. It's one-way: the bot never reads your replies.
+Then it sends them as plain-text Telegram messages, one per section, with a 🔔 Reminders list that brings saved events and deadlines back as they get close (see below). Only the first message buzzes your phone. It's one-way: the bot never reads your replies.
 
 ```
 launchd 06:00, at login, on wake, every 30 min ─▶ brief run --scheduled
@@ -21,7 +20,7 @@ launchd 06:00, at login, on wake, every 30 min ─▶ brief run --scheduled
                    ├─ lock, wait for network, prune memory, make sure Chrome + extension are up
                    ├─ claude -p --model sonnet --chrome  (sandboxed, read-only, no shell)
                    │    writes 05-day.txt … 50-internships.txt, items.tsv, notes.txt
-                   ├─ bash builds header, ⏰ Closing soon, "couldn't check" footer
+                   ├─ bash builds header, 🔔 Reminders, "couldn't check" footer
                    ├─ Telegram sendMessage (split, retried)
                    └─ only if everything sent: remember items, archive, mark success
 ```
@@ -66,13 +65,14 @@ Paths are resolved from the script's own location, so the repo can live anywhere
 |---|---|
 | `./brief run` | Full run now: research, send to Telegram, update memory, archive. Ignores the "already sent today" guard. |
 | `./brief run --dry-run` | Full research, printed to the terminal. Sends nothing. Doesn't touch `seen.tsv` or `archive/`. |
-| `./brief run --only <section>` | One section only: `day`, `india`, `world`, `tech`, `events`, `competitions`, `internships`. Combine with `--dry-run`. |
+| `./brief run --only <section>` | One section only: `day`, `india`, `world`, `tech`, `events` (events + competitions + hackathons), `internships`. Combine with `--dry-run`. |
 | `./brief run --scheduled` | What launchd runs. Only runs if a brief is due: past `RUN_HOUR:RUN_MINUTE`, not yet delivered today, and fewer than `MAX_DAILY_ATTEMPTS` attempts today. Otherwise it exits silently. Waits for the network, starts Chrome and waits up to 60s for the extension. |
 | `./brief resend [YYYY-MM-DD]` | Re-send an archived brief (default: the latest). |
 | `./brief chat-id` | Lists the chat IDs that have messaged your bot (Telegram `getUpdates`). |
 | `./brief test-telegram` | Sends "✅ Morning Brief bot is connected". |
 | `./brief doctor` | Health check: ✅/❌ plus a fix for each item. |
 | `./brief chrome-check` | Live one-turn test that `claude -p` can actually use the Claude in Chrome extension. It's the only reliable check of the extension pairing. Uses a tiny bit of your plan. |
+| `./brief sources [--reset <site>]` | Which websites keep failing and are being skipped; `--reset` brings one back. |
 | `./brief install` | Fills `CLAUDE_BIN` into config, renders the LaunchAgent with absolute paths and `RUN_HOUR:RUN_MINUTE`, then `launchctl bootstrap`s it. Idempotent. **Mac Mini only.** It refuses elsewhere unless you pass `--yes`. |
 | `./brief install --print` | Renders and lints the plist, prints it, installs nothing. |
 | `./brief uninstall` | Unloads and removes the LaunchAgent, which pauses the brief. |
@@ -109,10 +109,45 @@ Examples:
 | `RUN_HOUR`, `RUN_MINUTE` | `6`, `0` | Daily run time (local time; keep the Mac on Asia/Kolkata) |
 | `MAX_SECONDS` | `2400` | Hard timeout per run |
 | `CLAUDE_BIN` | (filled by `install`) | Absolute path to `claude` on this machine |
-| `CLOSING_SOON_DAYS` | `3` | Window for ⏰ Closing soon |
 | `SEEN_RETENTION_DAYS` | `120` | How long sent items are remembered, unless their deadline is still ahead |
 | `MAX_DAILY_ATTEMPTS` | `3` | Automatic attempts per day (catch-up plus retries after failures) |
 | `RETRY_MINUTES` | `30` | How often launchd re-checks whether a brief is due. Rerun `./brief install` after changing it. |
+
+### Events, competitions and reminders
+
+📅 **Events & Competitions** is one list covering events, meetups, hackathons, coding contests and case competitions, up to 90 days ahead:
+- **online** ones on any day;
+- **offline** ones only in **Bangalore**, and only on a **Friday, Saturday or Sunday**.
+
+The script enforces these rules itself, not just the prompt. Rows that break them are removed before sending: offline on a weekday, another city, a past deadline, more than 90 days out.
+
+Each new item is sent **once**. After that, 🔔 **Reminders** brings it back as its date or deadline approaches. The gap between reminders shrinks as the date gets closer:
+
+| Days left | Reminded every |
+|---|---|
+| 22 or more | 7 days |
+| 8–21 | 4 days |
+| 3–7 | 2 days |
+| 0–2 | daily |
+
+So something found on Monday that happens on Sunday is sent Mon (new), then reminded Wed, Fri, Sat and Sun. A 30-day deadline is reminded on days 7, 11, 15, 19, 23, 25, 27, 28, 29 and 30.
+
+The reminder uses whichever date comes first and is still ahead: the registration deadline or the event itself. Internships are reminded only in the last 14 days before their deadline. Reminders are never sent twice in a day, never on the day an item first appears, and never once its date has passed. History is kept in `state/reminders.tsv`.
+
+### Websites that keep failing
+
+Each run reports, per website, whether it could be read (`sources.tsv` in the run dir).
+
+A site that fails on **3 different days in a row** is skipped for 14 days:
+- the prompt tells the research run not to fetch it;
+- the brief's footer says "🚫 Stopped using devpost.com for now… will retry Wed 9 Dec".
+
+After 14 days the site is tried again. If it still fails, it's skipped for 30 days. Any successful read resets it.
+
+Notes about sites that were read fine but had nothing relevant never appear in the footer.
+
+- `./brief sources` shows the table.
+- `./brief sources --reset <site>` brings a site back immediately.
 
 ### Missed or failed runs (catch-up)
 
@@ -133,7 +168,7 @@ So:
 
 ```
 brief                     CLI entry point
-lib/                      common, telegram, state, claude, run, launchd, doctor
+lib/                      common, telegram, state, sources, claude, chrome, run, launchd, doctor
 prompts/brief.md          inner prompt template ({{PLACEHOLDERS}} filled each run)
 prompts/sources.md        sources per section            (edit me)
 prompts/profile.md        who you are       (gitignored; edit me)
@@ -141,7 +176,9 @@ config.env                your secrets      (gitignored, chmod 600)
 launchd/…plist.template   LaunchAgent template
 tests/run-tests.sh        offline test suite (fake curl + fake claude; never sends)
 
-state/seen.tsv            everything already sent: date_sent, type, deadline, title, url
+state/seen.tsv            everything already sent: date_sent, type, deadline, title, url, event_date, mode, details
+state/reminders.tsv       when each saved item was last reminded
+state/source_health.tsv   which websites keep failing, and which are being skipped
 state/last_success        date of the last delivered brief
 state/last_failure        time, reason, log of the last failure
 state/last_run            summary for ./brief status
@@ -299,7 +336,9 @@ It covers:
 - the Telegram splitter (10k chars with emoji; every chunk ≤ 3800 bytes, valid UTF-8, split on line boundaries);
 - retry, 429 `retry_after` and 401 handling;
 - token redaction;
-- the `seen.tsv` prune and Closing-soon logic (past, today, +2d and +10d deadlines);
+- the `seen.tsv` prune;
+- event rules (weekday-offline, other cities, past deadlines, 90-day horizon) and the reminder schedule, simulated day by day;
+- source health (failing days, same-day repeats, blocks, expiry, reset);
 - locks (live, dead and stale);
 - prompt rendering and plist rendering;
 - the full pipeline: dry run vs real run, `--scheduled` skip, resend, usage-limit, empty-output, timeout and Telegram failure paths.

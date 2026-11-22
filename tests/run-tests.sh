@@ -18,13 +18,12 @@ TELEGRAM_BOT_TOKEN="$FAKE_TOKEN"
 TELEGRAM_CHAT_ID="42"
 MODEL="sonnet"
 MAX_SECONDS=60
-CLOSING_SOON_DAYS=3
 SEEN_RETENTION_DAYS=120
 EOF
 chmod 600 "$BRIEF_CONFIG"
 
 # shellcheck disable=SC1090
-for l in common telegram state claude chrome run launchd doctor; do
+for l in common telegram state sources claude chrome run launchd doctor; do
   [ -f "$REPO_DIR/lib/$l.sh" ] && . "$REPO_DIR/lib/$l.sh"
 done
 load_config

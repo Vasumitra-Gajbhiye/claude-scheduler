@@ -178,9 +178,36 @@ sanitize_section() {
   perl -CSD -Mutf8 -pe 'unless (m{^\s*https?://}) { s/\*\*|__|`//g; s/^\s*#+\s*//; s/^(\s*)\*\s+/$1• /; s/(?<![\w*])\*([^*\n]+)\*(?![\w*])/$1/g }' "$1"
 }
 
+# filter_section_items <dropped_tsv> < section: remove numbered items whose URL is in the dropped
+# list (first column) and renumber the rest.
+filter_section_items() {
+  DROPPED="$1" perl -CSD -e '
+    my %drop; if (open my $d, "<:encoding(UTF-8)", $ENV{DROPPED}) { while (<$d>) { my ($u) = split /\t/; chomp $u; $drop{$u} = 1 if $u } }
+    local $/; my $t = <STDIN>;
+    unless (%drop) { print $t; exit 0 }
+    my @parts = split /^(?=\d+\.\s)/m, $t;
+    my $head = $parts[0] =~ /^\d+\.\s/ ? "" : shift @parts;
+    my @keep = grep { my $b = $_; !grep { $drop{$_} } ($b =~ m{^\s*(https?://\S+)\s*$}mg) } @parts;
+    my $n = 0; s/^\d+\./++$n . "."/e for @keep;
+    my $out = $head . join("", @keep); $out =~ s/\s+\z/\n/;
+    $out .= "\nNothing notable today.\n" unless @keep;
+    print $out;
+  '
+}
+
+# notes_drop_ok_sites <sources.tsv> < notes: drop note lines about sites that sources.tsv says were read
+# fine (e.g. "luma.com: only today's events visible" is not a failure).
+notes_drop_ok_sites() {
+  OKF="$1" perl -ne '
+    BEGIN { if (open my $f, "<", $ENV{OKF}) { while (<$f>) { my ($d, $s) = split /\t/; next unless defined $s; $s =~ s/\s//g;
+              next unless lc $s eq "ok"; $d = lc $d; $d =~ s{^[a-z]+://}{}; $d =~ s{[/?#:].*$}{}; $d =~ s/^www\.//; push @ok, $d if $d =~ /\./ } } }
+    my $l = lc $_; print unless grep { index($l, $_) >= 0 } @ok;
+  '
+}
+
 # build_messages <run_dir> <sections> <today>  → fills <run_dir>/send/, sets SENT_ITEMS
 build_messages() {
-  local run_dir="$1" sections="$2" today="$3" send="$1/send" s f c header counts="" footer="" closing missing=""
+  local run_dir="$1" sections="$2" today="$3" send="$1/send" s f c header counts="" footer="" missing="" blocked
   rm -rf "$send"; mkdir -p "$send"
   SENT_ITEMS=0
   for s in $sections; do
@@ -197,19 +224,28 @@ build_messages() {
       sanitize_section "$f" >"$send/$(section_file "$s")"
       continue
     fi
-    c="$(section_item_count "$f")"; c="${c:-0}"
-    [ "$c" -gt 0 ] || { log_only "Section $s has no items; skipping."; continue; }
-    sanitize_section "$f" >"$send/$(section_file "$s")"
-    SENT_ITEMS=$(( SENT_ITEMS + c ))
-    counts="$counts$(section_emoji "$s") $(section_label "$s"): $c
+    # Drop items that broke the rules (weekday offline, past, too far out); see items_clean.
+    sanitize_section "$f" | filter_section_items "$run_dir/items.clean.tsv.dropped" >"$send/$(section_file "$s")"
+    c="$(section_item_count "$send/$(section_file "$s")")"; c="${c:-0}"
+    if [ "$c" -gt 0 ]; then
+      SENT_ITEMS=$(( SENT_ITEMS + c ))
+      counts="$counts$(section_emoji "$s") $(section_label "$s"): $c
 "
+    else
+      rm -f "$send/$(section_file "$s")"
+      log_only "Section $s has no items; skipping."
+    fi
   done
+  if [ -s "$run_dir/items.clean.tsv.dropped" ]; then
+    while IFS="$TAB" read -r s c f; do log_only "Dropped item ($c): $f $s"; done <"$run_dir/items.clean.tsv.dropped"
+  fi
 
-  closing="$(closing_soon "$today" "$CLOSING_SOON_DAYS" "$SEEN_FILE")"
-  if [ -n "$closing" ]; then
-    printf '%s\n' "$closing" >"$send/60-closing.txt"
-    counts="${counts}⏰ Closing soon: $(section_item_count "$send/60-closing.txt")
+  reminders_due "$today" "$SEEN_FILE" "$run_dir/items.clean.tsv" "$REMINDERS_FILE" "$send/60-reminders.txt" "$run_dir/reminded.txt"
+  if [ -s "$send/60-reminders.txt" ]; then
+    counts="${counts}🔔 Reminders: $(grep -cE '^[0-9]+\. ' "$send/60-reminders.txt")
 "
+  else
+    rm -f "$send/60-reminders.txt"
   fi
 
   header="☀️ Morning brief: $(date_pretty "$today")"
@@ -227,17 +263,22 @@ Nothing new worth sending today."
 
   footer="$missing$EXTRA_NOTES"
   if [ -s "$run_dir/notes.txt" ]; then
-    footer="$footer$(grep -v '^[[:space:]]*$' "$run_dir/notes.txt" | head -n 12)
+    footer="$footer$(grep -v '^[[:space:]]*$' "$run_dir/notes.txt" | notes_drop_ok_sites "$run_dir/sources.tsv" | head -n 12)
 "
   fi
   footer="$(printf '%s' "$footer" | grep -v '^[[:space:]]*$' | sed 's/^/• /')"
-  if [ -n "$footer" ]; then
-    printf '⚠️ Couldn'\''t check:\n%s\n' "$footer" >"$send/90-footer.txt"
+  blocked="$(sources_footer_lines "$run_dir/newly_blocked.tsv")"
+  if [ -n "$footer" ] || [ -n "$blocked" ]; then
+    {
+      [ -n "$footer" ] && printf '⚠️ Couldn'\''t check:\n%s\n' "$footer"
+      [ -n "$footer" ] && [ -n "$blocked" ] && printf '\n'
+      [ -n "$blocked" ] && printf '%s\n' "$blocked"
+    } >"$send/90-footer.txt"
   fi
 }
 
 section_emoji() {
-  case "$1" in day) echo "📆" ;; world) echo "🌍" ;; india) echo "🇮🇳" ;; tech) echo "💻" ;; events) echo "📅" ;; competitions) echo "🏆" ;; internships) echo "💼" ;; esac
+  case "$1" in day) echo "📆" ;; world) echo "🌍" ;; india) echo "🇮🇳" ;; tech) echo "💻" ;; events) echo "📅" ;; internships) echo "💼" ;; esac
 }
 
 # Send every message in a dir in order. Header (00-*) with sound, the rest silent.
@@ -280,6 +321,7 @@ cmd_run() {
     shift
   done
   if [ -n "$only" ]; then
+    [ "$only" = competitions ] && only=events   # merged into events in v3
     valid_section "$only" || die "Unknown section '$only'. Choose one of: $ALL_SECTIONS"
     sections="$only"
   else
@@ -382,7 +424,8 @@ cmd_run() {
   fi
 
   # ---- validate + build
-  items_clean "$RUN_DIR/items.tsv" "$RUN_DIR/items.clean.tsv"
+  items_clean "$RUN_DIR/items.tsv" "$RUN_DIR/items.clean.tsv" "$today"
+  sources_update "$RUN_DIR" "$today"
   local any=0 s
   for s in $sections; do [ -s "$RUN_DIR/$(section_file "$s")" ] && any=1; done
   [ "$any" = 1 ] || fail_run "Claude finished but produced no section files"
@@ -403,9 +446,11 @@ cmd_run() {
 
   # ---- commit (only after every message went through)
   seen_append "$RUN_DIR/items.clean.tsv" "$today"
+  reminders_record "$today" "$RUN_DIR/reminded.txt"
   dest="$(archive_run "$RUN_DIR/send" "$today")"
   cp "$RUN_DIR/items.clean.tsv" "$dest/items.tsv" 2>/dev/null
   [ -s "$RUN_DIR/notes.txt" ] && cp "$RUN_DIR/notes.txt" "$dest/notes.log"
+  [ -s "$RUN_DIR/sources.tsv" ] && cp "$RUN_DIR/sources.tsv" "$dest/sources.log"
   mark_success "$today"
   write_last_run "ok" "$(( $(epoch_now) - RUN_START ))s" "$SENT_ITEMS" "$RUN_MODE" ""
   arch_note="${dest/#$HOME/~}"
@@ -470,6 +515,8 @@ cmd_status() {
     fi
   fi
   say "  Memory:        $(wc -l <"$SEEN_FILE" 2>/dev/null | tr -d ' ' || echo 0) items in state/seen.tsv"
+  local nb; nb="$(sources_blocked "$(today_iso)" | grep -c . || true)"
+  say "  Skipped sites: ${nb:-0}$( [ "${nb:-0}" -gt 0 ] && printf " (%s)" "$(sources_blocked "$(today_iso)" | cut -f1 | tr "\n" " " | sed "s/ $//")") (see ./brief sources)"
 }
 
 cmd_logs() {
