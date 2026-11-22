@@ -1,5 +1,5 @@
 # shellcheck shell=bash
-# Sourced by tests/run-tests.sh: state, closing-soon, lock, prompt, plist, full pipeline (fake claude).
+# Sourced by tests/run-tests.sh: state, lock, prompt, plist, full pipeline (fake claude).
 
 TODAY="$(today_iso)"
 d() { date_add_days "$TODAY" "$1"; }
@@ -22,33 +22,9 @@ check "kept recent rows (even with a past deadline)" bash -c "grep -q 'a/recent	
 check "dropped old row with no deadline" bash -c "! grep -q old-news '$SEEN_FILE'"
 check "dropped old row with past deadline" bash -c "! grep -q old-past '$SEEN_FILE'"
 
-# ---------------------------------------------------------------- closing soon
-section "Closing soon (deterministic)"
-{
-  printf '%s\tcompetition\t%s\tPast deadline comp\thttps://c/past\n' "$(d -3)" "$(d -1)"
-  printf '%s\tinternship\t%s\tCloses today\thttps://c/today\n' "$(d -3)" "$TODAY"
-  printf '%s\tcompetition\t%s\tCloses in two days\thttps://c/plus2\n' "$(d -2)" "$(d +2)"
-  printf '%s\tcompetition\t%s\tCloses in two days (dup)\thttps://c/plus2\n' "$(d -1)" "$(d +2)"
-  printf '%s\tinternship\t%s\tCloses in ten days\thttps://c/plus10\n' "$(d -1)" "$(d +10)"
-  printf '%s\tevent\t%s\tMeetup tomorrow\thttps://c/event\n' "$(d -1)" "$(d +1)"
-  printf '%s\tnews\t\tNews item\thttps://c/news\n' "$(d -1)"
-} >"$TMP/seen-cs.tsv"
-cs="$(closing_soon "$TODAY" 3 "$TMP/seen-cs.tsv")"
-printf '%s\n' "$cs" >"$TMP/cs.txt"
-check "starts with ⏰ CLOSING SOON" [ "$(head -1 "$TMP/cs.txt")" = "⏰ CLOSING SOON" ]
-check "includes today's deadline as (today)" grep -q "closes $(date_pretty "$TODAY") (today)" "$TMP/cs.txt"
-check "includes +2d as 'closes $(date_pretty "$(d +2)") (in 2 days)'" grep -q "closes $(date_pretty "$(d +2)") (in 2 days)" "$TMP/cs.txt"
-check "events say 'happens … (tomorrow)'" grep -q "happens $(date_pretty "$(d +1)") (tomorrow)" "$TMP/cs.txt"
-check "excludes past deadlines" bash -c "! grep -q c/past '$TMP/cs.txt'"
-check "excludes +10d (outside the 3-day window)" bash -c "! grep -q c/plus10 '$TMP/cs.txt'"
-check "dedupes by URL (one +2d entry)" [ "$(grep -c 'c/plus2' "$TMP/cs.txt")" = 1 ]
-check "sorted by deadline (today first)" [ "$(grep -m1 '^https' "$TMP/cs.txt")" = "https://c/today" ]
-check "empty seen → no message" [ -z "$(closing_soon "$TODAY" 3 /dev/null)" ]
-say "    ${C_DIM}sample:${C_OFF}"; sed 's/^/      /' "$TMP/cs.txt"
-
 # ---------------------------------------------------------------- items.tsv cleaning
 section "items.tsv validation"
-printf 'news\t\tGood\thttps://ok/1\r\nbogus\t\tBad type\thttps://x\ncompetition\tnot-a-date\tBad date\thttps://ok/2\ntech\t\tNo url\tnot-a-url\nevent\t2026-12-01\tGood event\thttps://ok/3\n' >"$TMP/items-raw.tsv"
+printf "news\t\tGood\thttps://ok/1\r\nbogus\t\tBad type\thttps://x\ncompetition\tnot-a-date\tBad date\thttps://ok/2\ntech\t\tNo url\tnot-a-url\nevent\t$(d +5)\tGood event (old 4-field row)\thttps://ok/3\n" >"$TMP/items-raw.tsv"
 items_clean "$TMP/items-raw.tsv" "$TMP/items-clean.tsv"
 check "keeps 3 valid rows" [ "$(wc -l <"$TMP/items-clean.tsv" | tr -d ' ')" = 3 ]
 check "invalid deadline blanked" grep -q "$(printf 'competition\t\tBad date')" "$TMP/items-clean.tsv"
@@ -126,25 +102,30 @@ check "claude got --chrome for a full run" grep -qx -- --chrome "$rd/fake-args.t
 check "Bash is disallowed for the inner run" bash -c "grep -A1 -x -- --disallowedTools '$rd/fake-args.txt' | grep -q '^Bash,'"
 check "Edit is scoped to the run dir" bash -c "grep -A1 -x -- --allowedTools '$rd/fake-args.txt' | grep -qF 'Edit(/$rd/**)'"
 check "ANTHROPIC_API_KEY was unset before calling claude" [ ! -s "$rd/fake-env.txt" ]
-check "empty section (events: nothing notable) skipped" bash -c "[ ! -e '$rd/send/30-events.txt' ]"
+check "offline weekday event dropped from the message" bash -c "! grep -q luma.com/weekday '$rd/send/30-events.txt'"
+check "online hackathon + weekend offline event kept, renumbered" bash -c "grep -q '^1. Fake Hackathon' '$rd/send/30-events.txt' && grep -q '^2. Weekend Builders Day' '$rd/send/30-events.txt'"
+check "header counts 2 events" grep -q "Events & Competitions: 2" "$rd/send/00-header.txt"
+check "dry run still learns source health (devpost failing 1 day)" bash -c "grep -q '^devpost.com	1	' '$PH/state/source_health.tsv'"
 check "markdown ** stripped from section text" bash -c "! grep -q '\*\*' '$rd/send/10-india.txt'"
-check "footer lists notes.txt" grep -q 'luma.com via Chrome: fake note' "$rd/send/90-footer.txt"
+check "footer lists real failures from notes.txt" grep -q 'devpost.com via WebFetch: 403' "$rd/send/90-footer.txt"
+check "footer drops notes about sites sources.tsv says were read fine" bash -c "! grep -q luma.com '$rd/send/90-footer.txt'"
 check "header has per-section counts" bash -c "grep -q 'India: 2' '$rd/send/00-header.txt' && grep -q 'Tech & AI: 1' '$rd/send/00-header.txt'"
 
 reset_fake "200${T}{\"ok\":true}"
 FAKE_CLAUDE_MODE=ok pipe run; rc=$?
 check "real run exits 0" [ "$rc" = 0 ]
 calls="$(grep '^CALL' "$FAKE_CALLS" | wc -l | tr -d ' ')"
-check "sent header + today + 5 sections + footer = 8 messages (got $calls)" [ "$calls" = 8 ]
+check "sent header + today + india + world + tech + events + internships + footer = 8 messages (got $calls)" [ "$calls" = 8 ]
 check "only the first message (header) makes a sound" [ "$(grep -c 'disable_notification=false' "$FAKE_CALLS")" = 1 ]
-check "seen.tsv got 6 valid rows with today's date (no row for Today)" [ "$(grep -c "^$TODAY	" "$PH/state/seen.tsv")" = 6 ]
+check "seen.tsv got 7 valid rows with today's date (no Today rows, no dropped event)" [ "$(grep -c "^$TODAY	" "$PH/state/seen.tsv")" = 7 ]
 check "archive/$TODAY created with messages" [ -s "$PH/archive/$TODAY/00-header.txt" ]
 check "last_success = today" [ "$(cat "$PH/state/last_success")" = "$TODAY" ]
 
 reset_fake "200${T}{\"ok\":true}"
 FAKE_CLAUDE_MODE=ok pipe run --only tech; rc=$?
 check "second real run same day archives to $TODAY-2" [ -d "$PH/archive/$TODAY-2" ]
-check "closing soon (+2d competition from run 1) appears in run 2" [ -s "$PH/archive/$TODAY-2/60-closing.txt" ]
+check "no reminder on the day an item was first sent" [ ! -e "$PH/archive/$TODAY-2/60-reminders.txt" ]
+check "same-day rerun does not double-count a failing site" bash -c "grep -q '^devpost.com	1	' '$PH/state/source_health.tsv'"
 rd2="$(ls -d "$PH"/runs/* | grep -v -- -dry | tail -1)"
 check "--only tech runs with --no-chrome" grep -qx -- --no-chrome "$rd2/fake-args.txt"
 
@@ -172,7 +153,7 @@ reset_fake "200${T}{\"ok\":true}"
 sed -i '' 's/^MAX_SECONDS=.*/MAX_SECONDS=4/' "$TMP/pipe.env"
 s0="$(date +%s)"; FAKE_CLAUDE_MODE=sleep pipe run --only tech; rc=$?; el=$(( $(date +%s) - s0 ))
 check "timeout kills claude and alerts (exit $rc after ${el}s)" bash -c "[ $rc = 1 ] && [ $el -lt 30 ] && grep -q 'timed out' '$PH/state/last_failure'"
-check "no orphaned fake-claude process" bash -c "! pgrep -f 'fake-claude.sh' >/dev/null"
+check "no orphaned fake-claude process" bash -c "sleep 1; ! pgrep -f 'fake-claude.sh' >/dev/null"
 sed -i '' 's/^MAX_SECONDS=.*/MAX_SECONDS=60/' "$TMP/pipe.env"
 
 reset_fake "200${T}{\"ok\":true}" "401${T}{\"ok\":false,\"description\":\"Unauthorized\"}"

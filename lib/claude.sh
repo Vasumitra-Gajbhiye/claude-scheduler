@@ -16,7 +16,7 @@ CLAUDE_PGID=""
 sections_need_chrome() {
   local s
   for s in $1; do
-    case "$s" in india|events|competitions|internships) return 0 ;; esac
+    case "$s" in india|events|internships) return 0 ;; esac
   done
   return 1
 }
@@ -41,6 +41,8 @@ Claude in Chrome is NOT available in this run. For any source marked Chrome, use
   RP_TODAY_HUMAN="$(TZ=$BRIEF_TZ date -j -f '%Y-%m-%d' "$today" '+%-d %B %Y')" \
   RP_WEEKDAY="$(weekday_long "$today")" \
   RP_END_14D="$(date_add_days "$today" +14)" \
+  RP_END_90D="$(date_add_days "$today" +${HORIZON_DAYS:-90})" \
+  RP_BLOCKED="$(sources_blocked_note "$today")" \
   RP_RUN_DIR="$run_dir" \
   RP_SEEN_PATH="$run_dir/seen.tsv" \
   RP_SECTIONS="$list" \
@@ -53,7 +55,7 @@ Claude in Chrome is NOT available in this run. For any source marked Chrome, use
     my $t = slurp($ARGV[0]);
     my %v = (
       TODAY_ISO => $ENV{RP_TODAY_ISO}, TODAY_HUMAN => $ENV{RP_TODAY_HUMAN}, WEEKDAY => $ENV{RP_WEEKDAY},
-      END_14D => $ENV{RP_END_14D}, RUN_DIR => $ENV{RP_RUN_DIR}, SEEN_PATH => $ENV{RP_SEEN_PATH},
+      END_14D => $ENV{RP_END_14D}, END_90D => $ENV{RP_END_90D}, BLOCKED_SOURCES => $ENV{RP_BLOCKED}, RUN_DIR => $ENV{RP_RUN_DIR}, SEEN_PATH => $ENV{RP_SEEN_PATH},
       SECTIONS => $ENV{RP_SECTIONS}, CHROME_NOTE => $ENV{RP_CHROME_NOTE},
       PROFILE => slurp($ENV{RP_PROFILE_FILE}), SOURCES => slurp($ENV{RP_SOURCES_FILE}),
     );

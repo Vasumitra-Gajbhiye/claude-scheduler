@@ -53,26 +53,28 @@ Browsing in Chrome is slow and token-heavy, so use it only where marked.
 - Prefer AI news. Rank by real-world impact.
 - No rumours, no fluff, no "10 best" lists.
 
-## events: 📅 BANGALORE EVENTS (up to 7, next 14 days)
-- Sources, read in Chrome (the pages are JS-heavy):
-  - https://luma.com/bangalore
-  - Luma's AI and Tech categories, filtered to Bangalore: https://luma.com/ai and https://luma.com/tech
-- Tool: Chrome.
-- Keep events worth my time: AI/ML, dev, startup/founder events, hackathons, and talks by strong people or companies.
-- Skip generic mixers and low-value paid workshops.
-- Include date, time, area, and whether it needs approval or an application.
-
-## competitions: 🏆 COMPETITIONS (up to 7)
+## events: 📅 EVENTS & COMPETITIONS (up to 8 NEW items, next 90 days)
+Events, meetups, talks, hackathons, coding contests, case competitions and challenges, all in one list.
+- Where they happen (HARD RULE):
+  - Online: any day is fine.
+  - Offline: ONLY in Bangalore, and ONLY on a Friday, Saturday or Sunday. Drop offline weekday events and anything in another city.
+- When: the event date or the registration deadline must fall within the "next 90 days" window given under # Today. Deadlines must not be past.
 - Sources:
-  - Unstop (hackathons, case competitions, coding challenges): https://unstop.com/competitions and https://unstop.com/hackathons
-  - Devfolio: https://devfolio.co/hackathons
-  - Kaggle (new competitions): https://www.kaggle.com/competitions
-  - MLH: https://mlh.io/seasons/2027/events (or the current season)
-  - Devpost: https://devpost.com/hackathons
+  - Luma, read in Chrome (the pages are JS-heavy). Scroll or use the date list to see the coming weeks, not just today:
+    - https://luma.com/bangalore
+    - https://luma.com/ai and https://luma.com/tech (keep Bangalore or online ones)
+  - Unstop (hackathons, case competitions, coding challenges): https://unstop.com/hackathons and https://unstop.com/competitions (read in Chrome when Chrome is enabled; WebFetch gets a cookie wall)
+  - Devfolio, WebFetch: https://devfolio.co/hackathons
+  - Devpost, WebFetch this JSON listing (the normal page blocks WebFetch): https://devpost.com/api/hackathons?status[]=upcoming&status[]=open
+  - Kaggle (new competitions): https://www.kaggle.com/competitions needs JavaScript, so read it in Chrome when Chrome is enabled; otherwise WebSearch for new Kaggle competitions.
+  - MLH, WebFetch: https://mlh.io/seasons/2027/events (or the current season; online ones count)
   - Notable company-run ones, e.g. Flipkart GRiD, Amazon ML Challenge, Google/Microsoft student challenges, Smart India Hackathon (find them with WebSearch).
-- Tool: WebSearch/WebFetch first. Use Chrome for Unstop/Devfolio only if WebFetch can't read them.
-- Must be open to undergrads, and online or in or near Bangalore.
-- Include deadline, prize or perk, and eligibility.
+- Keep things worth my time: AI/ML, dev, startup/founder events, hackathons, coding and case competitions, talks by strong people or companies. Must be open to undergrads.
+- Skip generic mixers and low-value paid workshops.
+- Never list anything already in seen.tsv: reminders about earlier items are sent automatically.
+- Order the list by date, soonest first.
+- Check every source above, one by one, before deciding there is nothing new.
+- Luma's city page only shows the first batch of upcoming events (often just today). To find Bangalore events later in the coming weeks, also WebSearch for things like "luma bangalore AI meetup", "lu.ma bengaluru hackathon <month>", "Bangalore tech events this weekend", and open the luma.com event pages you find. A partial Luma view is not a failure: don't put it in notes.txt. Aim for 4–8 new items; "Nothing notable" is only right if every source was checked and nothing new qualified.
 
 ## internships: 💼 INTERNSHIPS (up to 7, stipend ₹50,000/month or more)
 - HARD RULE: include only internships paying at least ₹50,000 per month (or the equivalent: ₹1.5L+ for a 3-month total, or USD/EUR equivalent).

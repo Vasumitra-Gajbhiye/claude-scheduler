@@ -14,7 +14,11 @@ case "$mode" in
   empty) echo '{"type":"result","subtype":"success","is_error":false,"num_turns":2,"duration_ms":1000,"total_cost_usd":0.02,"result":"done","permission_denials":[]}'; exit 0 ;;
 esac
 today="$(TZ=Asia/Kolkata date +%F)"; plus2="$(TZ=Asia/Kolkata date -v+2d +%F)"
+# next Mon-Thu and next Saturday (1-7 days ahead)
+weekday="$(for i in 1 2 3 4 5 6 7; do x="$(TZ=Asia/Kolkata date -v+${i}d +%u)"; if [ "$x" -le 4 ]; then TZ=Asia/Kolkata date -v+${i}d +%F; break; fi; done)"
+saturday="$(for i in 1 2 3 4 5 6 7; do x="$(TZ=Asia/Kolkata date -v+${i}d +%u)"; if [ "$x" = 6 ]; then TZ=Asia/Kolkata date -v+${i}d +%F; break; fi; done)"
 : >items.tsv; : >notes.txt
+printf "thehindu.com\tok\t\ndevpost.com\tfail\t403\nluma.com\tok\t\n" >sources.tsv
 printf '%s\n' "$prompt" | sed -n 's/^- \([a-z]*\) → \(.*\)$/\1 \2/p' | while read -r sec path; do
   case "$sec" in
     day)   printf '📆 TODAY\n\n1. Test Day\nWhy it matters.\n' >"$path" ;;
@@ -24,12 +28,13 @@ printf '%s\n' "$prompt" | sed -n 's/^- \([a-z]*\) → \(.*\)$/\1 \2/p' | while r
            printf 'news\t\tParliament passes bill\thttps://www.thehindu.com/news/national/a1\nnews\t\tRBI holds rates\thttps://www.thehindu.com/business/a2\n' >>items.tsv ;;
     tech)  printf '💻 TECH & AI\n\n1. New model launch\nWhy.\nhttps://example.com/tech1\n' >"$path"
            printf 'tech\t\tNew model launch\thttps://example.com/tech1\n' >>items.tsv ;;
-    events) printf '📅 BANGALORE EVENTS\n\nNothing notable today.\n' >"$path" ;;
-    competitions) printf '🏆 COMPETITIONS\n\n1. Fake Hackathon (Org)\nDeadline: soon · Prize: ₹1L · Eligibility: UG\nFit.\nhttps://unstop.com/c1\n' >"$path"
-           printf 'competition\t%s\tFake Hackathon\thttps://unstop.com/c1\n' "$plus2" >>items.tsv ;;
+    events) printf "📅 EVENTS & COMPETITIONS\n\n1. Fake Hackathon (Org)\nOnline · Deadline soon · Prize ₹1L\nFit.\nhttps://unstop.com/c1\n\n2. Weekday Meetup\nMon · 6 PM · Indiranagar (offline)\nWhy.\nhttps://luma.com/weekday\n\n3. Weekend Builders Day\nSat · 10 AM · Koramangala (offline)\nWhy.\nhttps://luma.com/weekend\n" >"$path"
+           printf "hackathon\t%s\tFake Hackathon\thttps://unstop.com/c1\t\tonline\tOnline · Prize ₹1L\n" "$plus2" >>items.tsv
+           printf "event\t\tWeekday Meetup\thttps://luma.com/weekday\t%s\tbangalore\tMon · Indiranagar\n" "$weekday" >>items.tsv
+           printf "event\t\tWeekend Builders Day\thttps://luma.com/weekend\t%s\tBengaluru (offline)\tSat · Koramangala\n" "$saturday" >>items.tsv ;;
     internships) printf '💼 INTERNSHIPS\n\n1. SWE Intern (BigCo)\nDeadline: not stated · Remote · ✅ open to 1st years\nFit.\nhttps://example.com/i1\n' >"$path"
            printf 'internship\t\tSWE Intern\thttps://example.com/i1\nbogus\t\tbad row\thttps://x\n' >>items.tsv ;;
   esac
 done
-echo "luma.com via Chrome: fake note" >>notes.txt
+printf "devpost.com via WebFetch: 403\nluma.com via Chrome: only today visible\n" >>notes.txt
 echo '{"type":"result","subtype":"success","is_error":false,"num_turns":12,"duration_ms":61000,"total_cost_usd":0.42,"usage":{"input_tokens":10,"output_tokens":20},"result":"wrote sections","permission_denials":[]}'

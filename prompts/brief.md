@@ -8,7 +8,7 @@ If something fails, skip it, record it in notes.txt, and carry on.
 - "Last 24 hours" means since roughly 06:00 IST yesterday.
   - On a quiet day (e.g. a weekend), you may stretch to 72 hours to reach the minimum item count. Never include anything older.
   - For anything older than 24 hours, add its date to the why-it-matters line, e.g. "(Fri 20 Nov)".
-- "Next 14 days" means {{TODAY_ISO}} to {{END_14D}} inclusive.
+- "Next 90 days" means {{TODAY_ISO}} to {{END_90D}} inclusive.
 
 # Your working directory
 Run directory (absolute path): {{RUN_DIR}}
@@ -24,6 +24,8 @@ Produce ONLY the sections listed above. Do not create files for other sections.
 
 {{CHROME_NOTE}}
 
+{{BLOCKED_SOURCES}}
+
 # Who the brief is for
 {{PROFILE}}
 
@@ -37,7 +39,7 @@ Read it first. It may be empty.
 
 Skip any item whose URL is already in it, or that is clearly the same story or opportunity under a different URL.
 - For news: drop a story already covered, unless there is a major new development. Then cover it, and say what changed.
-- For competitions and internships: never repeat one already sent. A separate "Closing soon" reminder is generated automatically, so there's no need to repeat items for that.
+- For events, competitions, hackathons and internships: never repeat one already sent. Reminders about earlier items are generated automatically, so there is no need to repeat them.
 
 # Hard rules
 1. READ-ONLY on the web.
@@ -63,15 +65,15 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
    - If a page shows a paywall or login wall, read what is visible and move on. NEVER log in.
 6. Quality over quantity.
    - Fewer strong items beat padding. If a section genuinely has nothing worth sending, write the file with just the heading and one line, "Nothing notable today.", and add NO rows for it to items.tsv.
-   - Verify dates. Events must fall in the next 14 days. Deadlines must not be past.
-7. Budget. Be efficient. Don't read the same page twice, and don't open every article. A listing's headline plus its summary is usually enough to write one line.
+   - Verify dates. Events and competitions must fall in the next 90 days. Deadlines must not be past. Offline events must be in Bangalore on a Friday, Saturday or Sunday.
+7. Budget. Be efficient: don't read the same page twice, and don't open every article (a listing's headline plus its summary is usually enough to write one line). But DO open every listed source page; skipping sources is not a saving.
 
 # How to research a section
 - Start from the source pages listed in sources.md, read DIRECTLY: WebFetch the URL, or use Chrome where marked.
   A site's own front page or news listing is the freshest view of the last 24 hours.
 - WebSearch's index often lags a day behind for very recent news. Searching for today's date is NOT a substitute for reading the listed pages.
 - Use WebSearch only to discover things (company-run competitions, newly announced internship programmes) or to fill gaps.
-- Work through most of the listed sources before choosing items. Pick the strongest items across them, not just the first site that answers.
+- Try EVERY listed source for each section (except sites under "# Sites to skip") before choosing items, and record each one in sources.tsv. Pick the strongest items across all of them, not just the first site that answers.
 - If a source fails, try once more with the other method (WebFetch ↔ Chrome, where Chrome is enabled). Then move on.
 
 # Output files (exact names and formats)
@@ -83,7 +85,6 @@ Skip any item whose URL is already in it, or that is clearly the same story or o
   - 15-world.txt
   - 20-tech.txt
   - 30-events.txt
-  - 40-competitions.txt
   - 50-internships.txt
 - Each file is Telegram PLAIN TEXT. No Markdown, no HTML, and none of the characters * _ # or backticks. Emojis are fine.
 - Keep each file under 3,000 characters.
@@ -96,8 +97,7 @@ Section headings, in order:
 - 🇮🇳 INDIA
 - 🌍 WORLD
 - 💻 TECH & AI
-- 📅 BANGALORE EVENTS
-- 🏆 COMPETITIONS
+- 📅 EVENTS & COMPETITIONS
 - 💼 INTERNSHIPS
 
 Item counts: follow sources.md exactly. India is exactly 5, World exactly 3, Tech & AI exactly 3 (fewer only if there genuinely aren't enough).
@@ -119,27 +119,33 @@ One line on why it matters.
 https://link
 ```
 
-Format for events (add a details line):
+Format for events & competitions (one combined list, soonest first, with a details line):
 ```
-📅 BANGALORE EVENTS
+📅 EVENTS & COMPETITIONS
 
-1. Event name
-Sat 22 Nov · 6 PM · Koramangala · approval needed
+1. Event name (Organiser)
+Sat 22 Nov · 6 PM · Koramangala (offline) · approval needed
 One line on why it's worth going.
 https://link
-```
-- The details line is: weekday day month · time · area · one of "free entry", "approval needed", "application required" or "paid".
 
-Format for competitions and internships (add a details line):
-```
-🏆 COMPETITIONS
-
-1. Name (Organiser)
-Deadline: Fri 5 Dec · Prize: ₹2L pool · Eligibility: all UG students, online
+2. Hackathon name (Organiser)
+Online · Deadline Fri 5 Dec · Event 12–14 Dec · Prize ₹2L pool · all UG students
 One line on why it's a fit.
 https://link
 ```
-- For internships, the details line is: Deadline · Stipend (₹/month; must be ₹50,000+ or a big-firm programme known to pay more) · Location/Remote · eligibility note.
+- Offline details line: weekday day month · time · area (offline) · one of "free entry", "approval needed", "application required" or "paid".
+- Online details line: Online · Deadline (if any) · event date(s) · prize or perk · eligibility.
+
+Format for internships (add a details line):
+```
+💼 INTERNSHIPS
+
+1. Role (Company)
+Deadline: Fri 5 Dec · Stipend: ₹80,000/month · Remote · ✅ open to 1st years
+One line on why it's a fit.
+https://link
+```
+- The details line is: Deadline · Stipend (₹/month; must be ₹50,000+ or a big-firm programme known to pay more) · Location/Remote · eligibility note.
 - The eligibility note is exactly one of:
   - "✅ open to 1st years"
   - "🕓 2nd/3rd-year only: note for the cycle"
@@ -147,24 +153,35 @@ https://link
 - If a deadline is unknown, write "Deadline: not stated".
 
 ## items.tsv
-- One row per item you included in any section file, tab-separated, with exactly 4 fields:
-  1. type: one of news, world, tech, event, competition, internship (india → news, world → world, tech → tech, events → event). No rows for the day section.
-  2. deadline: YYYY-MM-DD, or empty
-     - For events, use the event date.
-     - For competitions and internships, use the application deadline.
-     - For news, world and tech, leave it empty.
+- One row per item you included in any section file, tab-separated, with exactly 7 fields:
+  1. type: one of news, world, tech, event, competition, hackathon, internship
+     (india → news, world → world, tech → tech; events section → event, competition or hackathon). No rows for the day section.
+  2. deadline: registration/application deadline as YYYY-MM-DD, or empty
   3. title: short title
   4. url: the same URL as in the section file
-- No header row. No tabs or newlines inside fields.
-- An empty deadline still needs its tab, so the row has exactly 3 tabs.
+  5. event_date: the date the event/competition happens (first day) as YYYY-MM-DD, or empty
+  6. mode: "online" or "bangalore" (offline in Bangalore) for events, competitions and hackathons; empty otherwise
+  7. details: the details line exactly as in the section file; empty for news, world and tech
+- No header row. No tabs or newlines inside fields. Empty fields still need their tabs (every row has exactly 6 tabs).
+- Dates matter: they drive automatic reminders. Fill deadline and event_date whenever the page states them.
+
+## sources.tsv
+- One row per source website you actually tried to open in this run (from sources.md, or found via WebSearch and opened), tab-separated, 3 fields. Never list a site you did not try to open:
+  1. domain, e.g. devpost.com
+  2. ok or fail
+     - ok: the page loaded and you could read it, even if nothing on it was relevant
+     - fail: blocked, 403/404, cookie or login wall with no content, timeout, or an error
+  3. short reason (for fail), e.g. "403", "cookie wall", "timeout"; empty for ok
+- This is how the job learns which sites to stop using, so be accurate.
 
 ## notes.txt
-- Only list listed sources that could not be read (blocked, error, paywall, Chrome unavailable), one short line each, under 100 characters. For example:
+- Only list sources that could NOT BE READ (blocked, error, paywall, Chrome unavailable), one short line each, under 100 characters. For example:
   "thehindu.com via Chrome: extension not connected, used WebFetch"
+- A source that loaded but had nothing relevant (no events in Bangalore, no high-paying internships) is NOT a failure: don't list it.
 - No commentary, no methodology notes, nothing about sources that worked.
 - Write an empty file if everything worked.
 
 # Finish
-- Write all files for the listed sections, plus items.tsv and notes.txt, then close any Chrome tabs you opened.
+- Write all files for the listed sections, plus items.tsv, sources.tsv and notes.txt, then close any Chrome tabs you opened.
 - Your final reply should be one short line: how many items you wrote per section.
 - Do not print the brief itself in your reply. The files are what matters.
