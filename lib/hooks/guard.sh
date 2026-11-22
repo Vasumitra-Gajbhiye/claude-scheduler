@@ -9,6 +9,7 @@
 #   guard.conf         RUN_DIR, LEDGER (bot-created Notion pages), DS_IDS, CHROME_DEVICE, DRY
 #   clickable.tsv      tab, ref, unread(0/1), clicked(0/1): Outlook message-list rows seen via read_page
 #   pending_check      set after clicking an unread message, until the list is re-read
+#   opened.txt         sender+subject of every message opened while unread (tripwire survives re-renders)
 #   readstate_unsafe   tripwire: a clicked message flipped from Unread to read → no more clicks
 #   created_pages.txt  Notion page ids created in this run
 #   blocked.log        every blocked call (for the run log)
@@ -63,7 +64,10 @@ if ($mode eq "post") {
     # Record option rows inside the Outlook "Message list" listbox, and run the read-state tripwire.
     my $tab = $ti->{tabId} // "";
     my %rows; my @order;
-    for (slurp_lines("$g/clickable.tsv")) { my @f = split /\t/; next unless @f >= 4; my $k = "$f[0]\t$f[1]"; push @order, $k unless $rows{$k}; $rows{$k} = [@f] }
+    for (slurp_lines("$g/clickable.tsv")) { my @f = split /\t/, $_, -1; next unless @f >= 4; $f[4] //= ""; my $k = "$f[0]\t$f[1]"; push @order, $k unless $rows{$k}; $rows{$k} = [@f[0..4]] }
+    # Messages opened while unread, by sender+subject (refs change when Outlook re-renders the list).
+    my %opened = map { ($_->[4] => 1) } grep { $_->[3] eq "1" && $_->[2] eq "1" && length $_->[4] } values %rows;
+    $opened{$_} = 1 for grep { length } slurp_lines("$g/opened.txt");
     my $lb_indent; my $tripped = 0; my $seen_list = 0;
     for my $line (split /\n/, $text) {
       my ($ind) = $line =~ /^(\s*)/; my $n = length $ind;
@@ -73,11 +77,14 @@ if ($mode eq "post") {
       next unless $line =~ /^\s*option "(.*)" \[(ref_\d+)\]/;
       my ($label, $ref) = ($1, $2);
       my $unread = (substr($label, 0, 40) =~ /\bUnread\b/) ? 1 : 0;
+      (my $lk = $label) =~ s/^(?:(?:Unread|Collapsed|Expanded|Important|Has attachments|Flagged|Pinned|Replied|Forwarded)\s+)*//; $lk = substr($lk, 0, 100);
+      $tripped = 1 if $opened{$lk} && !$unread;
       my $k = "$tab\t$ref";
       if (my $r = $rows{$k}) {
         if ($r->[3] eq "1" && $r->[2] eq "1" && !$unread) { $tripped = 1 }
         $r->[2] = $unread if $r->[3] ne "1";
-      } else { $rows{$k} = [$tab, $ref, $unread, 0]; push @order, $k }
+        $r->[4] = $lk if $r->[3] ne "1";
+      } else { $rows{$k} = [$tab, $ref, $unread, 0, $lk]; push @order, $k }
     }
     if (open my $o, ">", "$g/clickable.tsv") { print $o join("\t", @{ $rows{$_} }), "\n" for @order }
     if ($tripped) { append("$g/readstate_unsafe", "a clicked message lost its Unread mark") }
@@ -147,6 +154,7 @@ if ($tool eq "${C}computer") {
     for (@rows) { my @f = split /\t/; $f[3] = 1 if $f[0] eq $tab && $f[1] eq $ref; print $o join("\t", @f), "\n" }
   }
   append("$g/pending_check", $ref) if $hit->[2] eq "1";
+  append("$g/opened.txt", $hit->[4]) if $hit->[2] eq "1" && defined $hit->[4] && length $hit->[4];
   allow();
 }
 

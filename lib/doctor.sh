@@ -171,6 +171,9 @@ EOF
     d_bad "NOTION_TASKS_DS / NOTION_EXAMS_DS not set" "Put the collection:// ids of the Tasks and Exams data sources in config.env (see README)"
   else
     d_ok "Notion data sources set; evening check from $(printf '%02d:00' "$((10#${TASKS_EVENING_HOUR:-19}))")"
+    if [ -z "${NOTION_TASKS_VIEW:-}" ] || [ -z "${NOTION_EXAMS_VIEW:-}" ]; then
+      d_warn "No Notion views set: reads use quota-limited queries and may hit Notion's usage limit" "Set NOTION_TASKS_VIEW and NOTION_EXAMS_VIEW in config.env (see README)"
+    fi
     if [ -x "$REPO_DIR/lib/hooks/guard.sh" ]; then d_ok "Guard hook is executable"
     else d_bad "lib/hooks/guard.sh is not executable" "chmod +x lib/hooks/guard.sh"; fi
     [ -n "$(chrome_device_id)" ] || d_bad "This Mac's Chrome isn't identified, so Outlook can't be read" "./brief chrome-check"

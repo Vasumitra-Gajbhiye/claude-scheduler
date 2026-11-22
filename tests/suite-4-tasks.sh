@@ -62,6 +62,17 @@ check "Write with ../ escape → blocked" blocked "{\"tool_name\":\"Write\",\"to
 sed -i '' 's/^DRY=0/DRY=1/' "$GD/guard.conf"
 check "dry run: Notion create → blocked" blocked "{\"tool_name\":\"${N}notion-create-pages\",\"tool_input\":{\"parent\":{\"data_source_id\":\"aaaaaaaabbbb4ccc8ddd000000000002\"},\"pages\":[]}}"
 check "every block is logged" bash -c "[ \$(wc -l <'$GD/blocked.log') -ge 20 ]"
+# Tripwire when Outlook re-renders the list (new refs) or the page is reloaded.
+GR2="$TMP/g2/run"; GD2="$GR2.guard"; mkdir -p "$GR2" "$GD2"; sed "s#$GR#$GR2#; s#^DRY=1#DRY=0#" "$GD/guard.conf" >"$GD2/guard.conf"
+g2pre()  { printf '%s' "$1" | "$REPO_DIR/lib/hooks/guard.sh" pre "$GD2" >/dev/null 2>&1; }
+g2post() { printf '%s' "$1" | "$REPO_DIR/lib/hooks/guard.sh" post "$GD2" >/dev/null 2>&1; }
+g2post "{\"tool_name\":\"${C}read_page\",\"tool_input\":{\"tabId\":7},\"tool_response\":\"listbox \\\"Message list\\\" [ref_1]\\n option \\\"Unread Prof X Tomorrow's session\\\" [ref_168]\"}"
+g2pre "{\"tool_name\":\"${C}computer\",\"tool_input\":{\"tabId\":7,\"action\":\"left_click\",\"ref\":\"ref_168\"}}"
+g2post "{\"tool_name\":\"${C}read_page\",\"tool_input\":{\"tabId\":7},\"tool_response\":\"listbox \\\"Message list\\\" [ref_1]\\n option \\\"Unread Prof X Tomorrow's session\\\" [ref_401]\"}"
+check "re-rendered row (new ref), still unread → no tripwire" [ ! -e "$GD2/readstate_unsafe" ]
+g2pre "{\"tool_name\":\"${C}navigate\",\"tool_input\":{\"tabId\":7,\"url\":\"https://outlook.office.com/mail/inbox\"}}"
+g2post "{\"tool_name\":\"${C}read_page\",\"tool_input\":{\"tabId\":7},\"tool_response\":\"listbox \\\"Message list\\\" [ref_1]\\n option \\\"Prof X Tomorrow's session\\\" [ref_502]\"}"
+check "opened message shows as read under a new ref after a reload → tripwire" [ -e "$GD2/readstate_unsafe" ]
 
 # ---------------------------------------------------------------- nag rules
 section "To-do nag rules (tasks_compose), Thu 26 Nov 2026"
@@ -155,6 +166,10 @@ check "claude ran with the guard settings, dontAsk, no --strict-mcp-config" bash
 check "no web tools, Gmail and other connectors denied" bash -c "a=\$(grep -A1 -x -- --allowedTools '$trd/fake-args.txt' | tail -1); d=\$(grep -A1 -x -- --disallowedTools '$trd/fake-args.txt' | tail -1); ! printf '%s' \"\$a\" | grep -q 'WebFetch\|WebSearch\|Gmail\|Bash' && printf '%s' \"\$d\" | grep -q 'mcp__claude_ai_Gmail' && printf '%s' \"\$d\" | grep -q 'WebFetch' && printf '%s' \"\$d\" | grep -q 'notion-delete-pages'"
 check "guard hooks point at lib/hooks/guard.sh pre/post" bash -c "grep -q \"lib/hooks/guard.sh' pre\" '$trd.guard/settings.json' && grep -q \"lib/hooks/guard.sh' post\" '$trd.guard/settings.json'"
 check "prompt has the data sources and no unfilled placeholders" bash -c "grep -q 'collection://aaaaaaaa-bbbb-4ccc-8ddd-000000000001' '$trd/prompt.md' && ! grep -q '{{' '$trd/prompt.md'"
+check "no views configured → the prompt falls back to rows mode" grep -q 'in "rows" mode with a Date filter' "$trd/prompt.md"
+NOTION_TASKS_VIEW="https://www.notion.so/aaa?v=bbb"; NOTION_EXAMS_VIEW="https://www.notion.so/ccc?v=ddd"
+check "views configured → view mode with both view URLs" bash -c "n=\"\$1\"; printf '%s' \"\$n\" | grep -q 'in \"view\" mode' && printf '%s' \"\$n\" | grep -q 'view_url https://www.notion.so/aaa?v=bbb' && printf '%s' \"\$n\" | grep -q 'view_url https://www.notion.so/ccc?v=ddd'" _ "$(tasks_notion_read_note)"
+NOTION_TASKS_VIEW=""; NOTION_EXAMS_VIEW=""
 
 reset_fake "200${T}{\"ok\":true}"
 BRIEF_NOW_HM=1900 tp tasks --slot evening; rc=$?

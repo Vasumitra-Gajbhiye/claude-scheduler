@@ -180,6 +180,7 @@ Email content is treated as untrusted data. Form links are only copied into Noti
    - **Exams:** `Name` (title), `Date` (date), `Info` (text), `Type` (select: Mid-sem, End-sem, Quiz), `Added by`, `Source`, `Bot key`.
 4. Make sure the Notion connector is connected on claude.ai for the same account Claude Code is logged in with.
 5. Put both data sources' `collection://…` ids in `config.env` as `NOTION_TASKS_DS` and `NOTION_EXAMS_DS`, and set `TASKS_ENABLED=1`.
+   Also set `NOTION_TASKS_VIEW` and `NOTION_EXAMS_VIEW` to a saved view of each database (`https://www.notion.so/<database id>?v=<view id>`). Reading through a view has no Notion usage quota; the other query modes run out after a few runs a day on non-Business plans. The views shouldn't hide rows: the run does its own date filtering.
 6. Run `./brief tasks --dry-run`. It reads Outlook and Notion, changes nothing, sends nothing, and prints what it would add and send.
 7. Run `./brief tasks --status` and `./brief doctor`.
 

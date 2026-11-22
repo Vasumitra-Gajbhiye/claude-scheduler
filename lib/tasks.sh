@@ -43,6 +43,18 @@ Do NOT use any Chrome tool. Skip steps 1-3, write outlook=skipped in status.txt,
 - Then call tabs_context_mcp with createIfEmpty: true and open your own new tab with tabs_create_mcp."
 }
 
+# How the run reads Notion: "view" mode (no quota) when saved views are configured, else rows mode.
+tasks_notion_read_note() {
+  if [ -n "${NOTION_TASKS_VIEW:-}" ] && [ -n "${NOTION_EXAMS_VIEW:-}" ]; then
+    printf '%s\n' "  - Read each database ONCE, before Step 3, with notion-query-data-sources in \"view\" mode, page_size 100 (if has_more, repeat with start_cursor = next_cursor):
+    - Tasks: view_url $NOTION_TASKS_VIEW
+    - Exams: view_url $NOTION_EXAMS_VIEW
+  - These views don't filter by date: filter the rows yourself. Never use rows or SQL mode (they hit a usage limit)."
+  else
+    printf '%s\n' "  - Read each database ONCE, before Step 3, with notion-query-data-sources in \"rows\" mode with a Date filter, limit 100. Use SQL only if rows mode fails."
+  fi
+}
+
 # tasks_render_prompt <run_dir> <slot> <dry:0|1> <today> <now_hm>
 tasks_render_prompt() {
   local run_dir="$1" slot="$2" dry="$3" today="$4" now_hm="$5" wk dry_note
@@ -65,6 +77,7 @@ Do everything else, and in actions.tsv list what you WOULD do, as would-create /
   RP_RUN_DIR="$run_dir" RP_PROCESSED_PATH="$run_dir/processed.tsv" \
   RP_TASKS_DS="$(printf '%s' "$NOTION_TASKS_DS" | sed 's#^collection://##')" \
   RP_EXAMS_DS="$(printf '%s' "$NOTION_EXAMS_DS" | sed 's#^collection://##')" \
+  RP_NOTION_READ="$(tasks_notion_read_note)" \
   RP_CHROME_NOTE="$(tasks_chrome_note)" RP_DRY_NOTE="$dry_note" \
   perl -CSD -e '
     use strict; use warnings;

@@ -43,10 +43,10 @@ Never ask questions, never wait for input, never stop to request permission. If 
   - "date:Date:start" is "YYYY-MM-DD", or "YYYY-MM-DDTHH:MM:00+05:30" when a time is known.
   - "date:Date:is_datetime" is 1 when a time is known, otherwise 0.
 - Checkbox values are "__YES__" or "__NO__".
-- Notion queries are rate-limited, so keep them to a minimum:
-  - Read each database ONCE, before Step 3, with notion-query-data-sources in "rows" mode (never SQL unless rows mode fails), limit 100:
-    - Tasks: Date between {{PAST_7D}} and {{END_60D}}, done or not (you need the done ones for duplicate and outing checks);
-    - Exams: Date between {{PAST_7D}} and {{END_60D}}.
+- Notion queries are rate-limited (rows and SQL modes hit a quota quickly; "view" mode does not), so keep them to a minimum:
+{{NOTION_READ}}
+  - Notion returns datetimes in UTC (e.g. "2026-11-23T03:30:00.000Z"). Convert them to IST (+05:30) before comparing dates or writing tasks.tsv. 03:30Z is 09:00 IST.
+  - Keep, for each database: Tasks with Date between {{PAST_7D}} and {{END_60D}}, done or not (you need the done ones for duplicate and outing checks); Exams with Date between {{PAST_7D}} and {{END_60D}}.
   - Use those results for every duplicate check, the outing check and the snapshot. Never query once per email.
   - Rows you create during the run: add them to your own list instead of re-querying.
   - Undated bot rows can't be found by the date filter: before creating an undated row, do one notion-search for its title.
@@ -85,11 +85,11 @@ Use the sender, subject and preview.
 # Reading a message (read-state tripwire)
 For each row you need to open:
 1. Note whether its label says "Unread".
-2. left_click it by its ref (from the latest read_page).
+2. Make sure the row is on screen and its ref is fresh: call read_page (filter "interactive") if you scrolled since the last one, then computer "scroll_to" that row's ref, then left_click it by that ref. Refs of rows that scrolled away go stale.
 3. Wait for the reading pane to load: computer action "wait", duration 1.
 4. Call get_page_text on the tab to read the reading pane.
-   - Check that the text is the message you clicked (same subject). If it still shows the previous message, wait 2 seconds and read again, once.
-   - If it's still wrong, use decision "skipped".
+   - Check that the text is the message you clicked (same subject). If it still shows the previous message, wait 2 seconds and read again. If it still shows the old message, call read_page, scroll_to the row, and click it once more (the guard needs the read_page first anyway).
+   - If it's still wrong after that, use decision "skipped" and move on to the next row. Don't give up on the remaining rows after one stuck click.
 5. Links: get_page_text drops link targets. When the message has a form, submission or sign-up link, call find with "links in the message body of the reading pane" (or read_page on the "Reading Pane" region) to get the actual href. Copy it exactly.
 6. IMMEDIATELY call read_page with filter "interactive" again. The guard requires this before the next click.
 7. Find the same row again (same sender and subject).
