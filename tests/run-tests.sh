@@ -24,7 +24,7 @@ EOF
 chmod 600 "$BRIEF_CONFIG"
 
 # shellcheck disable=SC1090
-for l in common telegram state claude launchd doctor; do
+for l in common telegram state claude run launchd doctor; do
   [ -f "$REPO_DIR/lib/$l.sh" ] && . "$REPO_DIR/lib/$l.sh"
 done
 load_config
@@ -32,7 +32,14 @@ load_config
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  \033[32m✓\033[0m %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); printf '  \033[31m✗ %s\033[0m\n' "$1"; [ $# -gt 1 ] && printf '    %s\n' "$2"; }
-check() { local name="$1"; shift; if "$@"; then ok "$name"; else bad "$name"; fi; }
+check() {
+  local name="$1"; shift
+  if "$@"; then ok "$name"; else
+    bad "$name"
+    # TEST_DEBUG=1 shows the tail of the last pipeline run's output on failure.
+    if [ -n "${TEST_DEBUG:-}" ] && [ -f "$TMP/pipe.out" ]; then tail -8 "$TMP/pipe.out" | sed 's/^/      | /'; fi
+  fi
+}
 section() { printf '\n\033[1m%s\033[0m\n' "$1"; }
 
 # ---------------------------------------------------------------- splitter

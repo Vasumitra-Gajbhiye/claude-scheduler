@@ -20,7 +20,7 @@ REPO_DIR="$(cd "$(dirname "$_src")" && pwd)"
 export REPO_DIR
 BRIEF_BIN="$REPO_DIR/brief"
 
-for _lib in common telegram state claude launchd doctor; do
+for _lib in common telegram state claude run launchd doctor; do
   # shellcheck disable=SC1090
   [ -f "$REPO_DIR/lib/$_lib.sh" ] && . "$REPO_DIR/lib/$_lib.sh"
 done
