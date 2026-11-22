@@ -12,6 +12,9 @@ Browsing in Chrome is slow and token-heavy, so use it only where marked.
 - Only genuinely major national stories: politics, policy, economy, courts, major incidents, education and exams.
 - Karnataka or Bangalore stories only if they're big.
 - Skip opinion pieces, sport, entertainment and minor regional crime.
+- Fallback, only if The Hindu can't be read in Chrome: thehindu.com blocks WebFetch, so instead WebFetch
+  https://indianexpress.com/section/india/ and https://www.livemint.com/news/india, plus WebSearch for today's major India news.
+  Say in notes.txt that you used the fallback.
 
 ## tech: 💻 TECH & AI (5–7 items, last 24 hours)
 - Sources:
