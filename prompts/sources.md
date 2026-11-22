@@ -4,7 +4,14 @@ Edit freely. Each section says how many items to include, the time window, where
 and whether to use Chrome (the logged-in browser) or WebSearch/WebFetch.
 Browsing in Chrome is slow and token-heavy, so use it only where marked.
 
-## india: 🇮🇳 INDIA (5–7 items, last 24 hours)
+## day: 📆 TODAY (1–3 entries, today's date only)
+- What is significant about today's date: national or international days (e.g. Gandhi Jayanti, Earth Day,
+  National Mathematics Day), notable anniversaries and birthdays of major figures, and Indian festivals or observances falling today.
+- Tool: WebSearch/WebFetch. Verify the date matches TODAY exactly. Skip trivia like "National Donut Day" unless it's genuinely known.
+- Format each entry as: number, name of the day or event, then one line on why it matters. Add a URL line only if you opened a good source.
+- If nothing notable falls today, write only the heading and "Nothing notable today.".
+
+## india: 🇮🇳 INDIA (exactly the top 5 stories, last 24 hours)
 - Source: The Hindu, read in Chrome (I'm logged in there):
   - https://www.thehindu.com/ (front page)
   - https://www.thehindu.com/news/national/ (National section)
@@ -12,11 +19,22 @@ Browsing in Chrome is slow and token-heavy, so use it only where marked.
 - Only genuinely major national stories: politics, policy, economy, courts, major incidents, education and exams.
 - Karnataka or Bangalore stories only if they're big.
 - Skip opinion pieces, sport, entertainment and minor regional crime.
+- Send only the 5 most important stories. Rank by national significance, not recency.
 - Fallback, only if The Hindu can't be read in Chrome: thehindu.com blocks WebFetch, so instead WebFetch
   https://indianexpress.com/section/india/ and https://www.livemint.com/news/india, plus WebSearch for today's major India news.
   Say in notes.txt that you used the fallback.
 
-## tech: 💻 TECH & AI (5–7 items, last 24 hours)
+## world: 🌍 WORLD (exactly the top 3 stories, last 24 hours)
+- The 3 most important global stories: geopolitics, wars and diplomacy, global economy and markets, major disasters, big elections.
+- Sources:
+  - Al Jazeera, read with WebFetch: https://www.aljazeera.com/news/ (main source; it reads reliably)
+  - WebSearch for today's biggest world stories, to cross-check what matters most globally.
+  - The Hindu International: https://www.thehindu.com/news/international/ , but ONLY if Chrome is enabled in this run; otherwise skip it silently.
+- Tool: WebFetch/WebSearch. BBC, AP, Reuters, The Guardian and NPR block WebFetch: don't try them.
+- Only a failure of Al Jazeera goes in notes.txt; skipping the optional sources is not a failure.
+- Don't repeat stories already in the India section.
+
+## tech: 💻 TECH & AI (exactly the top 3 stories, last 24 hours)
 - Sources:
   - Hacker News front page: https://news.ycombinator.com/
   - TechCrunch: https://techcrunch.com/
@@ -31,7 +49,8 @@ Browsing in Chrome is slow and token-heavy, so use it only where marked.
     - Entrackr: https://entrackr.com/
     - MediaNama: https://www.medianama.com/
 - Tool: WebSearch/WebFetch. Do NOT use Chrome for this section.
-- Include big launches, funding, policy and notable open source.
+- Only the 3 most important AI/tech stories of the day: major model or product launches, big funding or acquisitions, AI policy.
+- Prefer AI news. Rank by real-world impact.
 - No rumours, no fluff, no "10 best" lists.
 
 ## events: 📅 BANGALORE EVENTS (up to 7, next 14 days)
@@ -55,7 +74,11 @@ Browsing in Chrome is slow and token-heavy, so use it only where marked.
 - Must be open to undergrads, and online or in or near Bangalore.
 - Include deadline, prize or perk, and eligibility.
 
-## internships: 💼 INTERNSHIPS (up to 7)
+## internships: 💼 INTERNSHIPS (up to 7, stipend ₹50,000/month or more)
+- HARD RULE: include only internships paying at least ₹50,000 per month (or the equivalent: ₹1.5L+ for a 3-month total, or USD/EUR equivalent).
+  - The stipend must be stated on the page, OR the role is a well-known big-firm programme that is publicly known to pay above this
+    (e.g. Google, Microsoft, Goldman Sachs, JPMorgan, Amazon, quant firms). For these, write "Stipend: not stated, typically ₹1L+/month".
+  - Drop anything below ₹50,000/month, unpaid, or with an unknown stipend at a small or unknown company.
 - Sources:
   - Unstop internships: https://unstop.com/internships
   - Internshala (tech and data roles): https://internshala.com/internships/computer-science-internship/ and https://internshala.com/internships/data-science-internship/

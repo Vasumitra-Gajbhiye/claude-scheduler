@@ -135,9 +135,9 @@ reset_fake "200${T}{\"ok\":true}"
 FAKE_CLAUDE_MODE=ok pipe run; rc=$?
 check "real run exits 0" [ "$rc" = 0 ]
 calls="$(grep '^CALL' "$FAKE_CALLS" | wc -l | tr -d ' ')"
-check "sent header + 4 sections + footer = 6 messages (got $calls)" [ "$calls" = 6 ]
+check "sent header + today + 5 sections + footer = 8 messages (got $calls)" [ "$calls" = 8 ]
 check "only the first message (header) makes a sound" [ "$(grep -c 'disable_notification=false' "$FAKE_CALLS")" = 1 ]
-check "seen.tsv got 5 valid rows with today's date" [ "$(grep -c "^$TODAY	" "$PH/state/seen.tsv")" = 5 ]
+check "seen.tsv got 6 valid rows with today's date (no row for Today)" [ "$(grep -c "^$TODAY	" "$PH/state/seen.tsv")" = 6 ]
 check "archive/$TODAY created with messages" [ -s "$PH/archive/$TODAY/00-header.txt" ]
 check "last_success = today" [ "$(cat "$PH/state/last_success")" = "$TODAY" ]
 
@@ -157,7 +157,7 @@ check "--scheduled runs once when kickstart left force_next" bash -c "[ $rc = 0 
 
 reset_fake "200${T}{\"ok\":true}"
 pipe resend "$TODAY"; rc=$?
-check "resend $TODAY sends the archived messages" bash -c "[ $rc = 0 ] && [ \$(grep -c '^CALL' '$FAKE_CALLS') = 6 ]"
+check "resend $TODAY sends the archived messages" bash -c "[ $rc = 0 ] && [ \$(grep -c '^CALL' '$FAKE_CALLS') = 8 ]"
 
 reset_fake "200${T}{\"ok\":true}"
 FAKE_CLAUDE_MODE=usage pipe run --only tech; rc=$?
@@ -189,3 +189,5 @@ rm -rf "$PH/state/run.lock"
 pipe status; check "status runs" grep -q 'Last run' "$TMP/pipe.out"
 pipe logs; check "logs shows latest log" grep -q 'Morning Brief' "$TMP/pipe.out"
 pipe run --only nonsense; check "bad --only is rejected" grep -q "Unknown section" "$TMP/pipe.out"
+check "Today section sent without a link" bash -c "[ -s '$rd/send/05-day.txt' ] && grep -q 'Test Day' '$rd/send/05-day.txt'"
+check "World section sent, after India" bash -c "[ -s '$rd/send/15-world.txt' ] && grep -q '🌍 World: 1' '$rd/send/00-header.txt'"

@@ -55,7 +55,7 @@ items_clean() {
     NF >= 4 {
       t = $1; d = $2; title = $3; u = $4
       gsub(/^[ \t]+|[ \t]+$/, "", t); gsub(/^[ \t]+|[ \t]+$/, "", d); gsub(/^[ \t]+|[ \t]+$/, "", u)
-      if (t !~ /^(news|tech|event|competition|internship)$/) next
+      if (t !~ /^(news|world|tech|event|competition|internship)$/) next
       if (u !~ /^https?:\/\//) next
       if (d !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) d = ""
       print t, d, title, u

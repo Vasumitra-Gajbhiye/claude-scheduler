@@ -17,6 +17,9 @@ today="$(TZ=Asia/Kolkata date +%F)"; plus2="$(TZ=Asia/Kolkata date -v+2d +%F)"
 : >items.tsv; : >notes.txt
 printf '%s\n' "$prompt" | sed -n 's/^- \([a-z]*\) → \(.*\)$/\1 \2/p' | while read -r sec path; do
   case "$sec" in
+    day)   printf '📆 TODAY\n\n1. Test Day\nWhy it matters.\n' >"$path" ;;
+    world) printf '🌍 WORLD\n\n1. Summit ends\nWhy.\nhttps://www.bbc.com/news/w1\n' >"$path"
+           printf 'world\t\tSummit ends\thttps://www.bbc.com/news/w1\n' >>items.tsv ;;
     india) printf '🇮🇳 INDIA\n\n1. **Parliament** passes bill\nWhy it matters.\nhttps://www.thehindu.com/news/national/a1\n\n2. RBI holds rates\nWhy.\nhttps://www.thehindu.com/business/a2\n' >"$path"
            printf 'news\t\tParliament passes bill\thttps://www.thehindu.com/news/national/a1\nnews\t\tRBI holds rates\thttps://www.thehindu.com/business/a2\n' >>items.tsv ;;
     tech)  printf '💻 TECH & AI\n\n1. New model launch\nWhy.\nhttps://example.com/tech1\n' >"$path"
