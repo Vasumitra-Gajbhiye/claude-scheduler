@@ -87,9 +87,14 @@ EOF
   fi
   if chrome_connected; then
     d_ok "Claude in Chrome native host is running"
-    d_info "That doesn't prove the extension is signed in to this account. Verify with: ./brief chrome-check"
+    d_info "That alone doesn't prove the extension is paired. ./brief chrome-check tests it for real"
   else
     d_warn "Claude in Chrome native host not running (extension not active)" "Open Chrome, check the Claude extension is signed in (same account/org as Claude Code), run /chrome in claude"
+  fi
+  if [ -n "$(chrome_device_id)" ]; then
+    d_ok "This Mac's Chrome identified: $(chrome_device_name) ($(chrome_device_id | cut -c1-8)…), the only browser runs here will use"
+  else
+    d_bad "This Mac's Chrome not identified yet, so runs won't use Chrome" "./brief chrome-check"
   fi
 
   # 5-6. config + telegram

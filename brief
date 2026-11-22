@@ -20,7 +20,7 @@ REPO_DIR="$(cd "$(dirname "$_src")" && pwd)"
 export REPO_DIR
 BRIEF_BIN="$REPO_DIR/brief"
 
-for _lib in common telegram state claude run launchd doctor; do
+for _lib in common telegram state claude chrome run launchd doctor; do
   # shellcheck disable=SC1090
   [ -f "$REPO_DIR/lib/$_lib.sh" ] && . "$REPO_DIR/lib/$_lib.sh"
 done
@@ -56,7 +56,8 @@ ${C_BOLD}Inspecting${C_OFF}
   status                   Last run, result, duration, items, schedule state, next run.
   logs [-f]                Show (or follow) the latest run log.
   doctor                   Health check with a fix for every problem.
-  chrome-check             Live test that claude -p can use the Claude in Chrome extension.
+  chrome-check             Find THIS Mac's Chrome among the browsers on your account and save it
+                           (runs only ever use that browser). Re-run after reinstalling Chrome/extension.
   help                     This help.
 
 ${C_BOLD}Examples${C_OFF}
